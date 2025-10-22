@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { CssBaseline, Container } from '@mui/material';
+import { CssBaseline, Container, CircularProgress, Box } from '@mui/material';
+import ErrorBoundary from './components/ErrorBoundary';
 import Navbar from './components/Navbar';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
-import Dashboard from './pages/Dashboard';
-import Admin from './pages/Admin';
 import AuthContext from './context/AuthContext';
+
+// Lazy load components for code splitting
+const Home = React.lazy(() => import('./pages/Home'));
+const Login = React.lazy(() => import('./pages/Login'));
+const Signup = React.lazy(() => import('./pages/Signup'));
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Admin = React.lazy(() => import('./pages/Admin'));
 
 const theme = createTheme({
   palette: {
@@ -51,27 +54,49 @@ const theme = createTheme({
   },
 });
 
+// Loading component for Suspense fallback
+const LoadingFallback = () => (
+  <Box
+    display="flex"
+    justifyContent="center"
+    alignItems="center"
+    minHeight="400px"
+    flexDirection="column"
+  >
+    <CircularProgress size={60} thickness={4} />
+    <Box mt={2} textAlign="center">
+      <div className="gradient-text" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+        Loading Experience...
+      </div>
+    </Box>
+  </Box>
+);
+
 function App() {
   const [auth, setAuth] = useState({ token: localStorage.getItem('token'), user: null });
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthContext.Provider value={{ auth, setAuth }}>
-        <Router>
-          <Navbar />
-          <Container maxWidth="lg">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/admin" element={<Admin />} />
-            </Routes>
-          </Container>
-        </Router>
-      </AuthContext.Provider>
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AuthContext.Provider value={{ auth, setAuth }}>
+          <Router>
+            <Navbar />
+            <Container maxWidth="lg">
+              <Suspense fallback={<LoadingFallback />}>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/signup" element={<Signup />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/admin" element={<Admin />} />
+                </Routes>
+              </Suspense>
+            </Container>
+          </Router>
+        </AuthContext.Provider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
 

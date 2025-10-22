@@ -218,15 +218,70 @@ const lessonSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better performance
-lessonSchema.index({ title: 'text', content: 'text', description: 'text' }); // Text search
-lessonSchema.index({ difficulty: 1 });
-lessonSchema.index({ status: 1 });
-lessonSchema.index({ order: 1 });
-lessonSchema.index({ createdAt: -1 });
-lessonSchema.index({ views: -1 });
-lessonSchema.index({ rating: -1 });
-lessonSchema.index({ createdBy: 1 });
+// Optimized indexes for better performance
+
+// Enhanced text search with weighted fields and background indexing
+lessonSchema.index({
+  title: 'text',
+  content: 'text',
+  description: 'text',
+  'questions.question': 'text',
+  'keyPoints': 'text'
+}, {
+  weights: {
+    title: 10,
+    'questions.question': 8,
+    description: 6,
+    content: 4,
+    'keyPoints': 5
+  },
+  background: true
+});
+
+// Compound indexes for common query patterns
+lessonSchema.index({ status: 1, difficulty: 1 }); // Status/difficulty filtering
+lessonSchema.index({ status: 1, createdAt: -1 }); // Recent published lessons
+lessonSchema.index({ status: 1, views: -1 }); // Popular lessons
+lessonSchema.index({ status: 1, rating: -1 }); // High-rated lessons
+lessonSchema.index({ createdBy: 1, status: 1 }); // User's lessons
+lessonSchema.index({ order: 1, status: 1 }); // Ordered lessons by status
+
+// Partial indexes for published lessons (most common queries)
+lessonSchema.index(
+  { difficulty: 1, rating: -1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+lessonSchema.index(
+  { views: -1, rating: -1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+lessonSchema.index(
+  { createdAt: -1, rating: -1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+// Index for lesson ordering within courses (if course relationship exists)
+lessonSchema.index({ courseId: 1, order: 1 });
+
+// Sparse index for video URLs (only lessons with videos)
+lessonSchema.index(
+  { videoUrl: 1 },
+  {
+    partialFilterExpression: { videoUrl: { $exists: true } },
+    sparse: true
+  }
+);
+
+// Compound index for lesson analytics
+lessonSchema.index({ createdAt: -1, views: -1, completionCount: -1 });
 
 // Virtual for question count
 lessonSchema.virtual('questionCount').get(function() {

@@ -11,6 +11,7 @@ const path = require('path');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
+const { selectiveCache, invalidateUserCache, invalidateCourseCache, invalidateLessonCache } = require('./middleware/cache');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -145,6 +146,12 @@ let mockCourses = [];
 let mockLessons = [];
 
 module.exports = { mockUsers, mockCourses, mockLessons };
+
+// Apply caching to read-heavy endpoints
+app.use('/api/v1/courses', selectiveCache(['/courses', '/featured', '/popular', '/search']));
+app.use('/api/v1/lessons', selectiveCache(['/lessons', '/popular', '/search']));
+app.use('/api/v1/leaderboard', selectiveCache(['/leaderboard']));
+app.use('/api/v1/gamification', selectiveCache(['/achievements', '/stats']));
 
 // API Routes with versioning
 app.use('/api/v1/auth', authRoutes);

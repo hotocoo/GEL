@@ -11,8 +11,7 @@ import {
   Error as ErrorIcon,
   Refresh,
   ExpandMore,
-  ExpandLess,
-  BugReport
+  ExpandLess
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 

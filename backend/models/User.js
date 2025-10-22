@@ -193,13 +193,52 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better performance
-userSchema.index({ username: 1 });
-userSchema.index({ email: 1 });
-userSchema.index({ level: -1, xp: -1 }); // For leaderboards
-userSchema.index({ createdAt: -1 });
-userSchema.index({ lastLogin: -1 });
-userSchema.index({ 'progress.subject': 1, 'progress.course': 1 });
+// Optimized indexes for better performance
+userSchema.index({ username: 1 }); // Unique username lookup
+userSchema.index({ email: 1 }); // Unique email lookup
+userSchema.index({ level: -1, totalXp: -1 }); // For leaderboards - optimized
+userSchema.index({ createdAt: -1 }); // Recent users
+userSchema.index({ lastLogin: -1 }); // Active users
+userSchema.index({ 'progress.subject': 1, 'progress.course': 1 }); // Progress queries
+
+// Compound indexes for common query patterns
+userSchema.index({ role: 1, isActive: 1 }); // Admin/active user queries
+userSchema.index({ level: -1, streak: -1 }); // Gamification leaderboards
+userSchema.index({ 'stats.totalLessonsCompleted': -1 }); // Progress leaderboards
+userSchema.index({ emailVerified: 1, createdAt: -1 }); // Email verification queries
+
+// Partial index for password reset tokens (only when they exist)
+userSchema.index(
+  { resetPasswordToken: 1 },
+  {
+    partialFilterExpression: { resetPasswordToken: { $exists: true } },
+    sparse: true
+  }
+);
+
+// Partial index for email verification tokens (only when they exist)
+userSchema.index(
+  { emailVerificationToken: 1 },
+  {
+    partialFilterExpression: { emailVerificationToken: { $exists: true } },
+    sparse: true
+  }
+);
+
+// TTL index for password reset tokens (expire after 1 hour)
+userSchema.index(
+  { resetPasswordExpires: 1 },
+  { expireAfterSeconds: 0 }
+);
+
+// TTL index for email verification tokens (expire after 24 hours)
+userSchema.index(
+  { emailVerificationToken: 1 },
+  {
+    partialFilterExpression: { emailVerificationToken: { $exists: true } },
+    expireAfterSeconds: 86400 // 24 hours
+  }
+);
 
 // Virtual for XP to next level
 userSchema.virtual('xpToNextLevel').get(function() {

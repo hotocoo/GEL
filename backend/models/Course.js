@@ -155,15 +155,57 @@ const courseSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Indexes for better performance
-courseSchema.index({ title: 'text', description: 'text', subject: 'text' }); // Text search
-courseSchema.index({ subject: 1, category: 1 });
-courseSchema.index({ difficulty: 1 });
-courseSchema.index({ featured: -1, rating: -1 });
-courseSchema.index({ enrollmentCount: -1 });
-courseSchema.index({ createdAt: -1 });
-courseSchema.index({ status: 1 });
-courseSchema.index({ createdBy: 1 });
+// Optimized indexes for better performance
+
+// Text search index with weights for better relevance
+courseSchema.index({
+  title: 'text',
+  description: 'text',
+  subject: 'text',
+  tags: 'text'
+}, {
+  weights: {
+    title: 10,
+    subject: 8,
+    description: 5,
+    tags: 3
+  },
+  background: true
+});
+
+// Compound indexes for common query patterns
+courseSchema.index({ subject: 1, category: 1, status: 1 }); // Subject/category filtering
+courseSchema.index({ category: 1, difficulty: 1 }); // Category/difficulty filtering
+courseSchema.index({ status: 1, featured: -1, rating: -1 }); // Featured/popular courses
+courseSchema.index({ status: 1, enrollmentCount: -1 }); // Popular courses
+courseSchema.index({ status: 1, createdAt: -1 }); // Recent courses
+courseSchema.index({ createdBy: 1, status: 1 }); // User's courses
+courseSchema.index({ status: 1, rating: -1 }); // High-rated courses
+
+// Partial indexes for published courses only (most common queries)
+courseSchema.index(
+  { featured: -1, enrollmentCount: -1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+courseSchema.index(
+  { rating: -1, enrollmentCount: -1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+courseSchema.index(
+  { subject: 1, category: 1, difficulty: 1 },
+  {
+    partialFilterExpression: { status: 'published' }
+  }
+);
+
+// Geospatial index for future location-based features (if needed)
+courseSchema.index({ location: '2dsphere' });
 
 // Virtual for completion percentage
 courseSchema.virtual('completionPercentage').get(function() {
