@@ -1,18 +1,122 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Gamified Learning Platform for University Subjects"
-    />
-    <title>Gamified Learning Platform</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="theme-color" content="#667eea" />
+    <meta name="msapplication-TileColor" content="#667eea" />
+    
+    <!-- Favicon and Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Primary Meta Tags -->
+    <title>🎮 Gamified Learning Platform | Master University Subjects Through Gaming</title>
+    <meta name="title" content="🎮 Gamified Learning Platform | Master University Subjects Through Gaming" />
+    <meta name="description" content="Revolutionary gamified learning platform for university education. Master Computer Science, Mathematics, Physics, Biology, History, and Literature through interactive lessons, RPG progression, achievements, and social features." />
+    <meta name="keywords" content="gamified learning, university education, online courses, interactive learning, RPG education, computer science, mathematics, physics, biology, history, literature, educational gaming" />
+    <meta name="author" content="Gamified Learning Platform" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="English" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://gamifiedlearning.com/" />
+    <meta property="og:title" content="🎮 Gamified Learning Platform | Master University Subjects Through Gaming" />
+    <meta property="og:description" content="Revolutionary gamified learning platform for university education. Master subjects through interactive lessons, RPG progression, achievements, and social features." />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="og:image:alt" content="Gamified Learning Platform Preview" />
+    <meta property="og:site_name" content="Gamified Learning Platform" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://gamifiedlearning.com/" />
+    <meta property="twitter:title" content="🎮 Gamified Learning Platform | Master University Subjects Through Gaming" />
+    <meta property="twitter:description" content="Revolutionary gamified learning platform for university education. Master subjects through interactive lessons, RPG progression, achievements, and social features." />
+    <meta property="twitter:image" content="%PUBLIC_URL%/og-image.png" />
+    <meta property="twitter:image:alt" content="Gamified Learning Platform Preview" />
+    
+    <!-- Additional SEO and Performance -->
+    <meta name="application-name" content="Gamified Learning Platform" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Gamified Learning" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://gamifiedlearning.com/" />
+    
+    <!-- Sitemap -->
+    <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+    
+    <!-- RSS Feed (if applicable) -->
+    <link rel="alternate" type="application/rss+xml" href="/feed.xml" title="Gamified Learning Platform Updates" />
+    
+    <!-- Security -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests" />
+    
+    <!-- Schema.org markup for structured data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "EducationalOrganization",
+      "name": "Gamified Learning Platform",
+      "description": "Revolutionary gamified learning platform for university education",
+      "url": "https://gamifiedlearning.com",
+      "logo": "https://gamifiedlearning.com/logo.png",
+      "sameAs": [
+        "https://facebook.com/gamifiedlearning",
+        "https://twitter.com/gamifiedlearn"
+      ],
+      "offers": {
+        "@type": "Offer",
+        "category": "Educational Services",
+        "priceRange": "$$"
+      }
+    }
+    </script>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <noscript>
+      <div style="text-align: center; padding: 20px; background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+        <strong>JavaScript is required to use this application.</strong>
+        <p>Please enable JavaScript in your browser settings and reload the page.</p>
+        <p>If you're using a browser extension that blocks JavaScript, please disable it for this site.</p>
+      </div>
+    </noscript>
+    
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" style="position: absolute; top: -40px; left: 6px; background: #667eea; color: white; padding: 8px; text-decoration: none; border-radius: 4px; z-index: 1000;">Skip to main content</a>
+    
+    <!-- Main application root -->
+    <div id="root" role="application" aria-label="Gamified Learning Platform"></div>
+    
+    <!-- Loading fallback -->
+    <div id="loading-fallback" style="display: none; text-align: center; padding: 50px;">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <p>Loading the gamified learning experience...</p>
+    </div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          // Uncomment when service worker is implemented
+          // navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
   </body>
 </html>

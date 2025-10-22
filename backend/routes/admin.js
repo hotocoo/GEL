@@ -2,7 +2,13 @@ const express = require('express');
 const Course = require('../models/Course');
 const Lesson = require('../models/Lesson');
 const User = require('../models/User');
+const mongoose = require('mongoose');
 const router = express.Router();
+
+const isDbConnected = mongoose.connection.readyState === 1;
+
+// Import mock data
+const { mockUsers, mockCourses } = require('../server');
 
 // Middleware to check admin role
 const isAdmin = (req, res, next) => {
@@ -13,9 +19,15 @@ const isAdmin = (req, res, next) => {
 // Create course
 router.post('/courses', isAdmin, async (req, res) => {
   try {
-    const course = new Course(req.body);
-    await course.save();
-    res.status(201).json(course);
+    if (isDbConnected) {
+      const course = new Course(req.body);
+      await course.save();
+      res.status(201).json(course);
+    } else {
+      const course = { _id: Date.now(), ...req.body };
+      mockCourses.push(course);
+      res.status(201).json(course);
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -24,9 +36,13 @@ router.post('/courses', isAdmin, async (req, res) => {
 // Get analytics
 router.get('/analytics', isAdmin, async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const totalCourses = await Course.countDocuments();
-    res.json({ totalUsers, totalCourses });
+    if (isDbConnected) {
+      const totalUsers = await User.countDocuments();
+      const totalCourses = await Course.countDocuments();
+      res.json({ totalUsers, totalCourses });
+    } else {
+      res.json({ totalUsers: mockUsers.length, totalCourses: mockCourses.length });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

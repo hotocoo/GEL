@@ -1,24 +1,268 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  role: { type: String, enum: ['student', 'admin'], default: 'student' },
-  avatar: { type: String, default: 'default-avatar.png' },
-  level: { type: Number, default: 1 },
-  xp: { type: Number, default: 0 },
-  streak: { type: Number, default: 0 },
-  badges: [{ type: String }],
-  achievements: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Achievement' }],
-  progress: [{
-    subject: { type: String },
-    course: { type: String },
-    lessonsCompleted: { type: Number, default: 0 },
-    score: { type: Number, default: 0 }
+  username: {
+    type: String,
+    required: [true, 'Username is required'],
+    unique: true,
+    trim: true,
+    minlength: [3, 'Username must be at least 3 characters long'],
+    maxlength: [20, 'Username cannot exceed 20 characters'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers, and underscores']
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please provide a valid email address']
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters long'],
+    select: false // Don't include password in queries by default
+  },
+  role: {
+    type: String,
+    enum: {
+      values: ['student', 'admin'],
+      message: 'Role must be either student or admin'
+    },
+    default: 'student'
+  },
+  avatar: {
+    type: String,
+    default: 'default-avatar.png',
+    maxlength: [255, 'Avatar URL cannot exceed 255 characters']
+  },
+  level: {
+    type: Number,
+    default: 1,
+    min: [1, 'Level must be at least 1'],
+    max: [1000, 'Level cannot exceed 1000']
+  },
+  xp: {
+    type: Number,
+    default: 0,
+    min: [0, 'XP cannot be negative']
+  },
+  totalXp: {
+    type: Number,
+    default: 0,
+    min: [0, 'Total XP cannot be negative']
+  },
+  streak: {
+    type: Number,
+    default: 0,
+    min: [0, 'Streak cannot be negative']
+  },
+  longestStreak: {
+    type: Number,
+    default: 0,
+    min: [0, 'Longest streak cannot be negative']
+  },
+  badges: [{
+    type: String,
+    maxlength: [50, 'Badge name cannot exceed 50 characters']
   }],
-  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-  createdAt: { type: Date, default: Date.now }
+  achievements: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Achievement',
+    default: []
+  }],
+  progress: [{
+    subject: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, 'Subject name cannot exceed 100 characters']
+    },
+    course: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: [100, 'Course name cannot exceed 100 characters']
+    },
+    lessonsCompleted: {
+      type: Number,
+      default: 0,
+      min: [0, 'Lessons completed cannot be negative']
+    },
+    totalLessons: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total lessons cannot be negative']
+    },
+    score: {
+      type: Number,
+      default: 0,
+      min: [0, 'Score cannot be negative'],
+      max: [100, 'Score cannot exceed 100']
+    },
+    lastAccessed: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  friends: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: []
+  }],
+  preferences: {
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'auto'],
+      default: 'auto'
+    },
+    notifications: {
+      type: Boolean,
+      default: true
+    },
+    soundEffects: {
+      type: Boolean,
+      default: true
+    },
+    language: {
+      type: String,
+      default: 'en',
+      maxlength: [10, 'Language code cannot exceed 10 characters']
+    }
+  },
+  stats: {
+    totalLessonsCompleted: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total lessons completed cannot be negative']
+    },
+    totalQuizzesPassed: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total quizzes passed cannot be negative']
+    },
+    totalTimeSpent: {
+      type: Number,
+      default: 0,
+      min: [0, 'Total time spent cannot be negative']
+    },
+    averageScore: {
+      type: Number,
+      default: 0,
+      min: [0, 'Average score cannot be negative'],
+      max: [100, 'Average score cannot exceed 100']
+    }
+  },
+  lastLogin: {
+    type: Date,
+    default: Date.now
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpires: {
+    type: Date,
+    select: false
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String,
+    select: false
+  },
+  createdAt: {
+    type: Date,
+    default: Date.now,
+    immutable: true
+  },
+  updatedAt: {
+    type: Date,
+    default: Date.now
+  }
+}, {
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
+
+// Indexes for better performance
+userSchema.index({ username: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ level: -1, xp: -1 }); // For leaderboards
+userSchema.index({ createdAt: -1 });
+userSchema.index({ lastLogin: -1 });
+userSchema.index({ 'progress.subject': 1, 'progress.course': 1 });
+
+// Virtual for XP to next level
+userSchema.virtual('xpToNextLevel').get(function() {
+  return this.level * 100;
+});
+
+// Virtual for level progress percentage
+userSchema.virtual('levelProgress').get(function() {
+  return (this.xp % 100) / 100 * 100;
+});
+
+// Pre-save middleware to update total XP
+userSchema.pre('save', function(next) {
+  if (this.isModified('xp') || this.isModified('level')) {
+    this.totalXp = this.level * 100 + this.xp;
+  }
+  this.updatedAt = new Date();
+  next();
+});
+
+// Method to add XP and handle level up
+userSchema.methods.addXP = function(xpAmount) {
+  this.xp += xpAmount;
+  this.totalXp += xpAmount;
+  
+  // Level up logic
+  const newLevel = Math.floor(this.totalXp / 100) + 1;
+  if (newLevel > this.level) {
+    this.level = newLevel;
+    this.xp = this.totalXp % 100;
+  }
+  
+  return this.save();
+};
+
+// Method to update streak
+userSchema.methods.updateStreak = function() {
+  const today = new Date();
+  const lastLoginDate = new Date(this.lastLogin);
+  const daysDiff = Math.floor((today - lastLoginDate) / (1000 * 60 * 60 * 24));
+  
+  if (daysDiff === 1) {
+    // Consecutive day
+    this.streak += 1;
+    if (this.streak > this.longestStreak) {
+      this.longestStreak = this.streak;
+    }
+  } else if (daysDiff > 1) {
+    // Streak broken
+    this.streak = 1;
+  }
+  
+  this.lastLogin = today;
+  return this.save();
+};
+
+// Static method to get leaderboard
+userSchema.statics.getLeaderboard = function(limit = 10) {
+  return this.find({ isActive: true })
+    .sort({ level: -1, totalXp: -1 })
+    .limit(limit)
+    .select('username level xp avatar')
+    .lean();
+};
 
 module.exports = mongoose.model('User', userSchema);
