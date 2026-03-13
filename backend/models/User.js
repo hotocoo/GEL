@@ -193,15 +193,12 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Optimized indexes for better performance
-userSchema.index({ username: 1 }); // Unique username lookup
-userSchema.index({ email: 1 }); // Unique email lookup
+// Compound indexes for common query patterns (username and email are already indexed via unique:true)
 userSchema.index({ level: -1, totalXp: -1 }); // For leaderboards - optimized
+userSchema.index({ totalXp: -1 }); // XP leaderboard
 userSchema.index({ createdAt: -1 }); // Recent users
 userSchema.index({ lastLogin: -1 }); // Active users
 userSchema.index({ 'progress.subject': 1, 'progress.course': 1 }); // Progress queries
-
-// Compound indexes for common query patterns
 userSchema.index({ role: 1, isActive: 1 }); // Admin/active user queries
 userSchema.index({ level: -1, streak: -1 }); // Gamification leaderboards
 userSchema.index({ 'stats.totalLessonsCompleted': -1 }); // Progress leaderboards
@@ -216,14 +213,6 @@ userSchema.index(
   }
 );
 
-// Partial index for email verification tokens (only when they exist)
-userSchema.index(
-  { emailVerificationToken: 1 },
-  {
-    partialFilterExpression: { emailVerificationToken: { $exists: true } },
-    sparse: true
-  }
-);
 
 // TTL index for password reset tokens (expire after 1 hour)
 userSchema.index(
@@ -240,38 +229,36 @@ userSchema.index(
   }
 );
 
-// Virtual for XP to next level
+// Virtual for XP to next level (XP needed within current level to advance)
 userSchema.virtual('xpToNextLevel').get(function() {
-  return this.level * 100;
+  return 100; // Each level requires 100 XP
 });
 
-// Virtual for level progress percentage
+// Virtual for level progress percentage (within current level)
 userSchema.virtual('levelProgress').get(function() {
-  return (this.xp % 100) / 100 * 100;
+  return this.xp; // xp is already 0-99 within current level
 });
 
-// Pre-save middleware to update total XP
+// Pre-save middleware to update updatedAt
 userSchema.pre('save', function(next) {
-  if (this.isModified('xp') || this.isModified('level')) {
-    this.totalXp = this.level * 100 + this.xp;
-  }
   this.updatedAt = new Date();
   next();
 });
 
 // Method to add XP and handle level up
 userSchema.methods.addXP = function(xpAmount) {
-  this.xp += xpAmount;
   this.totalXp += xpAmount;
   
-  // Level up logic
+  // Level = floor(totalXp / 100) + 1
   const newLevel = Math.floor(this.totalXp / 100) + 1;
-  if (newLevel > this.level) {
+  const leveledUp = newLevel > this.level;
+  if (leveledUp) {
     this.level = newLevel;
-    this.xp = this.totalXp % 100;
   }
+  // xp is current XP within the current level
+  this.xp = this.totalXp % 100;
   
-  return this.save();
+  return this.save().then(saved => ({ user: saved, leveledUp, newLevel }));
 };
 
 // Method to update streak
@@ -290,6 +277,7 @@ userSchema.methods.updateStreak = function() {
     // Streak broken
     this.streak = 1;
   }
+  // daysDiff === 0 means same day login, keep streak unchanged
   
   this.lastLogin = today;
   return this.save();
