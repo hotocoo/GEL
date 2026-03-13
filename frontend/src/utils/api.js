@@ -111,7 +111,7 @@ export const socialAPI = {
   addFriend: (userId) => api.post(`/social/friends/${userId}`),
   removeFriend: (userId) => api.delete(`/social/friends/${userId}`),
   getLeaderboard: () => api.get('/social/leaderboard'),
-  searchUsers: (query, limit) => api.get('/social/users/search', { params: { q: query, limit } }),
+  searchUsers: (searchQuery, limit) => api.get('/social/users/search', { params: { q: searchQuery, limit } }),
 };
 
 export const leaderboardAPI = {

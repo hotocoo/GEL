@@ -116,8 +116,9 @@ router.get('/:id', optionalAuth, validateObjectId, asyncHandler(async (req, res)
   // Hide correctAnswer for unauthenticated users
   if (!req.user) {
     lesson.questions = lesson.questions?.map(q => {
-      const { correctAnswer, ...safeQ } = q;
-      return safeQ;
+      const copy = { ...q };
+      delete copy.correctAnswer;
+      return copy;
     });
   }
 

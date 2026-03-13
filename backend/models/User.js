@@ -246,6 +246,8 @@ userSchema.pre('save', function(next) {
 });
 
 // Method to add XP and handle level up
+// Level formula: Level 1 = 0-99 totalXp, Level 2 = 100-199 totalXp, etc.
+// i.e. level = floor(totalXp / 100) + 1, xp (within level) = totalXp % 100
 userSchema.methods.addXP = function(xpAmount) {
   this.totalXp += xpAmount;
   

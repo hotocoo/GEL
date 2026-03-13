@@ -115,7 +115,7 @@ router.get('/users/search', auth, [
   }
 
   const { q, limit = 20 } = req.query;
-  const limitNum = Math.min(parseInt(limit), 50);
+  const limitNum = Math.min(parseInt(limit) || 20, 50);
 
   if (!isDbConnected()) {
     return res.json({ success: true, data: { users: [] } });

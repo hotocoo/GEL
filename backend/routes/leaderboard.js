@@ -25,7 +25,7 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
   const skip = (pageNum - 1) * limitNum;
 
   // Validate sortBy to prevent injection
-  const allowedSortFields = { totalXp: -1, level: -1, streak: -1, xp: -1 };
+  const allowedSortFields = { totalXp: -1, level: -1, streak: -1 }; // 'xp' excluded: use 'totalXp' for XP-based ranking
   const sortField = allowedSortFields[sortBy] !== undefined ? sortBy : 'totalXp';
   const sortOptions = { [sortField]: -1 };
 

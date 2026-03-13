@@ -314,6 +314,12 @@ router.post('/streak/update', auth, asyncHandler(async (req, res) => {
 
 // ─── HELPER FUNCTIONS ────────────────────────────────────────────────────────
 
+/**
+ * Checks a user's current progress against all active achievements and
+ * unlocks any newly eligible ones, awarding XP and saving to DB.
+ * @param {Object} user - Mongoose User document (already saved)
+ * @returns {Array<{title: string, xpReward: number}>} Newly unlocked achievements
+ */
 async function checkAndUnlockAchievements(user) {
   if (!isDbConnected()) return [];
 
