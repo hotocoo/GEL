@@ -15,7 +15,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
 // Import mock data for fallback
-const { mockUsers } = require('../server');
+const { mockUsers } = require('../data/mockData');
 
 // Utility function to generate tokens
 const generateTokens = (userId, role) => {
@@ -88,13 +88,10 @@ router.post('/signup', validateSignup, asyncHandler(async (req, res) => {
       avatar: avatar || 'default-avatar.png',
       role,
       preferences,
-      emailVerificationToken: crypto.randomBytes(32).toString('hex')
+      emailVerificationToken: crypto.randomBytes(32).toString('hex'),
+      lastLogin: new Date()
     });
     
-    await user.save();
-    
-    // Update last login
-    user.lastLogin = new Date();
     await user.save();
     
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
@@ -185,10 +182,8 @@ router.post('/login', validateLogin, asyncHandler(async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
     
-    // Update login tracking
-    user.lastLogin = new Date();
+    // Update login tracking (updateStreak sets lastLogin and saves internally)
     await user.updateStreak();
-    await user.save();
     
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
     

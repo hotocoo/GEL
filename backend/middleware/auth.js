@@ -13,9 +13,9 @@ const auth = async (req, res, next) => {
     
     // Check if DB is connected for real user lookup
     const mongoose = require('mongoose');
-    const isDbConnected = mongoose.connection.readyState === 1;
+    const dbConnected = mongoose.connection.readyState === 1;
     
-    if (isDbConnected) {
+    if (dbConnected) {
       const user = await User.findById(decoded.id).select('-password');
       if (!user) {
         return res.status(401).json({ error: 'Token is not valid. User not found.' });

@@ -13,7 +13,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
 // Import mock data for fallback
-const { mockCourses, mockLessons } = require('../server');
+const { mockCourses, mockLessons } = require('../data/mockData');
 
 // Utility function to sanitize course data
 const sanitizeCourse = (course) => ({

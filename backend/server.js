@@ -88,8 +88,8 @@ const authLimiter = rateLimit({
 });
 
 // Apply rate limiting
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/signup', authLimiter);
+app.use('/api/v1/auth/login', authLimiter);
+app.use('/api/v1/auth/signup', authLimiter);
 app.use('/api/', limiter);
 
 // Compression middleware
@@ -106,12 +106,9 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost/gamified-learning', {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
       socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
       bufferCommands: false, // Disable mongoose buffering
-      bufferMaxEntries: 0, // Disable mongoose buffering
     });
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
@@ -141,10 +138,9 @@ const connectDB = async () => {
 connectDB();
 
 // Mock data for demo if DB not connected
-let mockUsers = [];
-let mockCourses = [];
-let mockLessons = [];
+const { mockUsers, mockCourses, mockLessons } = require('./data/mockData');
 
+// Re-export for backwards compatibility with route files
 module.exports = { mockUsers, mockCourses, mockLessons };
 
 // Apply caching to read-heavy endpoints
@@ -195,7 +191,7 @@ app.get('/api', (req, res) => {
 });
 
 // 404 handler for undefined routes
-app.all('*', (req, res) => {
+app.all('/{*path}', (req, res) => {
   res.status(404).json({
     success: false,
     error: `Route ${req.originalUrl} not found`

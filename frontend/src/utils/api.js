@@ -83,27 +83,40 @@ export const lessonsAPI = {
 export const progressAPI = {
   getUserProgress: () => api.get('/progress/user'),
   updateProgress: (data) => api.post('/progress/update', data),
-  getLeaderboard: (params) => api.get('/progress/leaderboard', { params }),
   getStats: () => api.get('/progress/stats'),
+  getLeaderboard: (params) => api.get('/progress/leaderboard', { params }),
 };
 
 export const gamificationAPI = {
+  // XP management
+  addXP: (amount, source) => api.post('/gamification/xp/add', { amount, source }),
+  getUserStats: () => api.get('/gamification/user/stats'),
+
+  // Achievements
   getAchievements: (params) => api.get('/gamification/achievements', { params }),
   getUserAchievements: () => api.get('/gamification/user/achievements'),
   unlockAchievement: (id) => api.post(`/gamification/achievements/${id}/unlock`),
+
+  // Quests
   getQuests: (params) => api.get('/gamification/quests', { params }),
   getActiveQuests: () => api.get('/gamification/quests/active'),
   completeQuest: (id) => api.post(`/gamification/quests/${id}/complete`),
-  getUserStats: () => api.get('/gamification/user/stats'),
-  addXP: (amount, source) => api.post('/gamification/xp/add', { amount, source }),
+
+  // Streak
+  updateStreak: () => api.post('/gamification/streak/update'),
 };
 
 export const socialAPI = {
   getFriends: () => api.get('/social/friends'),
   addFriend: (userId) => api.post(`/social/friends/${userId}`),
   removeFriend: (userId) => api.delete(`/social/friends/${userId}`),
-  getLeaderboard: (params) => api.get('/social/leaderboard', { params }),
-  searchUsers: (query) => api.get('/social/users/search', { params: { q: query } }),
+  getLeaderboard: () => api.get('/social/leaderboard'),
+  searchUsers: (searchQuery, limit) => api.get('/social/users/search', { params: { q: searchQuery, limit } }),
+};
+
+export const leaderboardAPI = {
+  getGlobal: (params) => api.get('/leaderboard', { params }),
+  getStreak: (params) => api.get('/leaderboard/streak', { params }),
 };
 
 export const adminAPI = {

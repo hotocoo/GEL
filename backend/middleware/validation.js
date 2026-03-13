@@ -169,11 +169,20 @@ const validateQuestion = [
   handleValidationErrors
 ];
 
-// Parameter validation
+// Parameter validation for :id route parameter
 const validateObjectId = [
   param('id')
     .isMongoId()
     .withMessage('Invalid ID format'),
+
+  handleValidationErrors
+];
+
+// Parameter validation for :userId route parameter
+const validateUserId = [
+  param('userId')
+    .isMongoId()
+    .withMessage('Invalid user ID format'),
 
   handleValidationErrors
 ];
@@ -222,6 +231,7 @@ module.exports = {
   validateLesson,
   validateQuestion,
   validateObjectId,
+  validateUserId,
   validatePagination,
   validateSearch
 };
