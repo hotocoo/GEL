@@ -15,7 +15,7 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
 // Import mock data for fallback
-const { mockUsers } = require('../server');
+const { mockUsers } = require('../mockData');
 
 // Utility function to generate tokens
 const generateTokens = (userId, role) => {
@@ -215,13 +215,19 @@ router.post('/login', validateLogin, asyncHandler(async (req, res) => {
     }
     
     // Update login tracking for mock user
+    const prevLogin = user.lastLogin ? new Date(user.lastLogin) : null;
     user.lastLogin = new Date();
-    if (Math.floor((new Date() - new Date(user.lastLogin)) / (1000 * 60 * 60 * 24)) === 1) {
-      user.streak = (user.streak || 0) + 1;
-      if (user.streak > (user.longestStreak || 0)) {
-        user.longestStreak = user.streak;
+    if (prevLogin) {
+      const daysDiff = Math.floor((user.lastLogin - prevLogin) / (1000 * 60 * 60 * 24));
+      if (daysDiff === 1) {
+        user.streak = (user.streak || 0) + 1;
+        if (user.streak > (user.longestStreak || 0)) {
+          user.longestStreak = user.streak;
+        }
+      } else if (daysDiff > 1) {
+        user.streak = 1;
       }
-    } else if (Math.floor((new Date() - new Date(user.lastLogin)) / (1000 * 60 * 60 * 24)) > 1) {
+    } else {
       user.streak = 1;
     }
     

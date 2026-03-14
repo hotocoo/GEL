@@ -23,7 +23,7 @@ import {
   PlayArrow,
   Add
 } from '@mui/icons-material';
-import axios from 'axios';
+import { coursesAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
@@ -41,14 +41,14 @@ const Dashboard = () => {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:5000/api/v1/courses');
-        setCourses(response.data);
+        const response = await coursesAPI.getAll({ limit: 6 });
+        setCourses(response?.data?.courses || []);
       } catch (error) {
         console.error('Error fetching courses:', error);
         // Set mock data for demo
         setCourses([
-          { _id: '1', title: 'Computer Science Basics', subject: 'Computer Science' },
-          { _id: '2', title: 'Advanced Mathematics', subject: 'Mathematics' }
+          { id: '1', title: 'Computer Science Basics', subject: 'Computer Science' },
+          { id: '2', title: 'Advanced Mathematics', subject: 'Mathematics' }
         ]);
       } finally {
         setLoading(false);
@@ -260,7 +260,7 @@ const Dashboard = () => {
 
               <Grid container spacing={2}>
                 {courses.slice(0, isMobile ? 2 : 3).map(course => (
-                  <Grid item xs={12} sm={6} md={4} key={course._id}>
+                  <Grid item xs={12} sm={6} md={4} key={course.id || course._id}>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Card
                         sx={{

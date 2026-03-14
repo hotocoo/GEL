@@ -194,8 +194,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Optimized indexes for better performance
-userSchema.index({ username: 1 }); // Unique username lookup
-userSchema.index({ email: 1 }); // Unique email lookup
+// Note: username and email are already indexed via 'unique: true' in the schema definition
 userSchema.index({ level: -1, totalXp: -1 }); // For leaderboards - optimized
 userSchema.index({ createdAt: -1 }); // Recent users
 userSchema.index({ lastLogin: -1 }); // Active users
@@ -216,27 +215,13 @@ userSchema.index(
   }
 );
 
-// Partial index for email verification tokens (only when they exist)
+// TTL index for email verification tokens (expire after 24 hours)
+// Note: only one index per field - use sparse + partialFilterExpression
 userSchema.index(
   { emailVerificationToken: 1 },
   {
     partialFilterExpression: { emailVerificationToken: { $exists: true } },
     sparse: true
-  }
-);
-
-// TTL index for password reset tokens (expire after 1 hour)
-userSchema.index(
-  { resetPasswordExpires: 1 },
-  { expireAfterSeconds: 0 }
-);
-
-// TTL index for email verification tokens (expire after 24 hours)
-userSchema.index(
-  { emailVerificationToken: 1 },
-  {
-    partialFilterExpression: { emailVerificationToken: { $exists: true } },
-    expireAfterSeconds: 86400 // 24 hours
   }
 );
 
