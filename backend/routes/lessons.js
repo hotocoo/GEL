@@ -118,10 +118,11 @@ router.get('/:id', optionalAuth, validateObjectId, asyncHandler(async (req, res)
     return res.status(404).json({ error: 'Lesson not found' });
   }
 
-  // Increment view count in background
+  // Increment view count atomically in background (no race condition)
   if (req.user) {
-    lesson.views = (lesson.views || 0) + 1;
-    lesson.save().catch(err => console.error('Error updating lesson views:', err));
+    Lesson.findByIdAndUpdate(req.params.id, { $inc: { views: 1 } }).catch(err =>
+      console.error('Error updating lesson views:', err)
+    );
   }
 
   res.json({ success: true, data: { lesson: sanitizeLesson(lesson) } });
@@ -167,7 +168,15 @@ router.put('/:id', auth, validateObjectId, validateLesson, asyncHandler(async (r
     return res.status(403).json({ error: 'Not authorized to edit this lesson' });
   }
 
-  Object.keys(req.body).forEach(key => { lesson[key] = req.body[key]; });
+  // Whitelist allowed fields to prevent mass-assignment
+  const allowedFields = [
+    'title', 'description', 'content', 'videoUrl', 'videoDuration',
+    'questions', 'keyPoints', 'learningObjectives', 'xpReward',
+    'estimatedTime', 'difficulty', 'tags', 'resources', 'order', 'status'
+  ];
+  allowedFields.forEach(key => {
+    if (req.body[key] !== undefined) lesson[key] = req.body[key];
+  });
   lesson.lastUpdatedBy = req.user.id;
   await lesson.save();
   await lesson.populate('createdBy', 'username avatar');

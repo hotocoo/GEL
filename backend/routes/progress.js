@@ -84,8 +84,10 @@ router.post('/update', auth, asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'User not found' });
   }
 
-  // Upsert progress entry
-  const existingIdx = user.progress.findIndex(p => p.course === course && p.subject === subject);
+  // Upsert progress entry - use toString() to safely compare ObjectId or string
+  const existingIdx = user.progress.findIndex(
+    p => p.course.toString() === course.toString() && p.subject === subject
+  );
   if (existingIdx >= 0) {
     if (lessonsCompleted !== undefined) user.progress[existingIdx].lessonsCompleted = lessonsCompleted;
     if (totalLessons !== undefined) user.progress[existingIdx].totalLessons = totalLessons;

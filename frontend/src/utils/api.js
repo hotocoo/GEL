@@ -95,7 +95,7 @@ export const gamificationAPI = {
   getActiveQuests: () => api.get('/gamification/quests/active'),
   completeQuest: (id) => api.post(`/gamification/quests/${id}/complete`),
   getUserStats: () => api.get('/gamification/user/stats'),
-  addXP: (amount, source) => api.post('/gamification/xp/add', { amount, source }),
+  addXP: (userId, amount, source) => api.post('/gamification/xp/add', { userId, amount, source }),
 };
 
 export const socialAPI = {

@@ -5,7 +5,7 @@ const Quest = require('../models/Quest');
 const mongoose = require('mongoose');
 const router = express.Router();
 
-const { auth } = require('../middleware/auth');
+const { auth, authorize } = require('../middleware/auth');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 const isDbConnected = () => mongoose.connection.readyState === 1;
@@ -190,10 +190,10 @@ router.get('/user/stats', auth, asyncHandler(async (req, res) => {
 }));
 
 // @route   POST /api/v1/gamification/xp/add
-// @desc    Award XP to the logged-in user (internal / system use)
-// @access  Private
-router.post('/xp/add', auth, asyncHandler(async (req, res) => {
-  const { amount, source } = req.body;
+// @desc    Award XP to a user (admin only - for manual awards)
+// @access  Private (Admin)
+router.post('/xp/add', auth, authorize('admin'), asyncHandler(async (req, res) => {
+  const { userId, amount, source } = req.body;
 
   if (!amount || typeof amount !== 'number' || amount <= 0) {
     return res.status(400).json({ error: 'A positive XP amount is required' });
@@ -203,7 +203,8 @@ router.post('/xp/add', auth, asyncHandler(async (req, res) => {
     return res.json({ success: true, data: { xpEarned: amount } });
   }
 
-  const user = await User.findById(req.user.id);
+  const targetId = userId || req.user.id;
+  const user = await User.findById(targetId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
