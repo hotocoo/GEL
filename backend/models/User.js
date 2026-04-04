@@ -251,15 +251,8 @@ userSchema.virtual('levelProgress').get(function() {
   return Math.min(100, Math.round((this.xp / xpNeeded) * 100));
 });
 
-// Pre-save middleware to keep totalXp in sync
+// Pre-save middleware: keep updatedAt in sync on every save
 userSchema.pre('save', function(next) {
-  if (this.isModified('xp') || this.isModified('level')) {
-    // totalXp = all XP accumulated across all levels
-    // Recalculate only if xp/level were changed outside of addXP
-    if (!this._xpMethodCalled) {
-      // Simple sync: totalXp stays as-is (addXP manages it precisely)
-    }
-  }
   this._xpMethodCalled = false;
   this.updatedAt = new Date();
   next();

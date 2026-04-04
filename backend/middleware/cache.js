@@ -38,9 +38,12 @@ const cacheMiddleware = (ttl = 300) => {
     if (cachedData !== undefined) {
       // Add cache hit header
       res.set('X-Cache-Status', 'HIT');
-      const ttlRemaining = cache.getTtl(cacheKey);
-      if (ttlRemaining) {
-        res.set('X-Cache-TTL', String(Math.floor((ttlRemaining - Date.now()) / 1000)));
+      const expiresAt = cache.getTtl(cacheKey);
+      if (expiresAt) {
+        const secondsRemaining = Math.floor((expiresAt - Date.now()) / 1000);
+        if (secondsRemaining > 0) {
+          res.set('X-Cache-TTL', String(secondsRemaining));
+        }
       }
 
       // Return cached data

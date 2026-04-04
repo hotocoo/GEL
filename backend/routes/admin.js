@@ -11,6 +11,9 @@ const { asyncHandler } = require('../middleware/errorHandler');
 // isDbConnected must be a function, not a module-level constant
 const isDbConnected = () => mongoose.connection.readyState === 1;
 
+// Escape special regex characters to prevent ReDoS attacks
+const escapeRegex = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // Import mock data
 const { mockUsers, mockCourses } = require('../server');
 
@@ -76,9 +79,16 @@ router.get('/users', asyncHandler(async (req, res) => {
 
   if (isDbConnected()) {
     const filter = {};
-    if (role) filter.role = role;
+    const allowedRoles = ['student', 'admin'];
+    if (role && allowedRoles.includes(role)) filter.role = role;
     if (isActive !== undefined) filter.isActive = isActive === 'true';
-    if (q) filter.$or = [{ username: { $regex: q, $options: 'i' } }, { email: { $regex: q, $options: 'i' } }];
+    if (q) {
+      const safeQ = escapeRegex(q.trim());
+      filter.$or = [
+        { username: { $regex: safeQ, $options: 'i' } },
+        { email: { $regex: safeQ, $options: 'i' } }
+      ];
+    }
 
     const [users, total] = await Promise.all([
       User.find(filter)
@@ -165,7 +175,8 @@ router.get('/courses', asyncHandler(async (req, res) => {
 
   if (isDbConnected()) {
     const filter = {};
-    if (status) filter.status = status;
+    const allowedStatuses = ['draft', 'published', 'archived'];
+    if (status && allowedStatuses.includes(status)) filter.status = status;
 
     const [courses, total] = await Promise.all([
       Course.find(filter)

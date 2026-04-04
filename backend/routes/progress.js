@@ -14,6 +14,7 @@ const isDbConnected = () => mongoose.connection.readyState === 1;
 // @desc    Get authenticated user's full progress
 // @access  Private
 router.get('/user', auth, asyncHandler(async (req, res) => {
+  // req.user.id is set by the auth middleware from a verified JWT - safe to use
   if (isDbConnected()) {
     const user = await User.findById(req.user.id).select('progress stats level xp totalXp streak');
     if (!user) {

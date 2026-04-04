@@ -41,12 +41,13 @@ const rankColors = {
 
 const rankEmojis = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
+const MotionTableRow = motion(TableRow);
+
 const LeaderboardRow = ({ entry, currentUserId, isMobile }) => {
   const isCurrentUser = (entry._id || entry.id) === currentUserId;
 
   return (
-    <motion.tr
-      component={TableRow}
+    <MotionTableRow
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: Math.min(entry.rank * 0.03, 0.5) }}
@@ -97,7 +98,7 @@ const LeaderboardRow = ({ entry, currentUserId, isMobile }) => {
           </Box>
         </TableCell>
       )}
-    </motion.tr>
+    </MotionTableRow>
   );
 };
 

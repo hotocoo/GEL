@@ -107,8 +107,11 @@ router.get('/achievements', asyncHandler(async (req, res) => {
 
   if (isDbConnected()) {
     const filter = { isSecret: false };
-    if (category) filter.category = category;
-    if (rarity) filter.rarity = rarity;
+    // Validate against known enum values to prevent injection
+    const allowedCategories = ['academic', 'social', 'streak', 'completion', 'special'];
+    const allowedRarities = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+    if (category && allowedCategories.includes(category)) filter.category = category;
+    if (rarity && allowedRarities.includes(rarity)) filter.rarity = rarity;
 
     const achievements = await Achievement.find(filter)
       .sort({ rarity: 1, title: 1 })

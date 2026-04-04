@@ -37,11 +37,14 @@ router.get('/', optionalAuth, validatePagination, asyncHandler(async (req, res) 
   const skip = (pageNum - 1) * limitNum;
 
   if (isDbConnected()) {
-    const filter = { status };
+    const allowedStatuses = ['draft', 'published', 'archived'];
+    const allowedDifficulties = ['beginner', 'intermediate', 'advanced'];
+    const safeStatus = allowedStatuses.includes(status) ? status : 'published';
+    const filter = { status: safeStatus };
     if (courseId && mongoose.Types.ObjectId.isValid(courseId)) {
-      filter.courseId = courseId;
+      filter.courseId = new mongoose.Types.ObjectId(courseId);
     }
-    if (difficulty) filter.difficulty = difficulty;
+    if (difficulty && allowedDifficulties.includes(difficulty)) filter.difficulty = difficulty;
 
     const [lessons, total] = await Promise.all([
       Lesson.find(filter)

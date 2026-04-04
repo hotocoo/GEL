@@ -182,8 +182,8 @@ router.post('/login', validateLogin, asyncHandler(async (req, res) => {
     }
     
     // Update login tracking
-    user.updateStreak(); // mutates in place, no extra save
-    await user.save();
+    user.updateStreak(); // mutates lastLogin and streak fields in place
+    await user.save();  // single save for all login changes
     
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
     
@@ -501,8 +501,15 @@ router.post('/forgot-password', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Email is required' });
   }
 
+  // Validate email format before using in a DB query
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const sanitizedEmail = String(email).toLowerCase().trim();
+  if (!emailRegex.test(sanitizedEmail)) {
+    return res.status(400).json({ error: 'Invalid email address' });
+  }
+
   if (isDbConnected()) {
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const user = await User.findOne({ email: sanitizedEmail });
 
     // Always return success to prevent email enumeration attacks
     if (user) {
@@ -539,13 +546,18 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Token and new password are required' });
   }
 
+  // Validate token is a hex string (crypto.randomBytes(32).toString('hex') format)
+  if (!/^[a-f0-9]{64}$/.test(String(token))) {
+    return res.status(400).json({ error: 'Invalid or expired reset token' });
+  }
+
   if (newPassword.length < 6) {
     return res.status(400).json({ error: 'New password must be at least 6 characters long' });
   }
 
   if (isDbConnected()) {
     const user = await User.findOne({
-      resetPasswordToken: token,
+      resetPasswordToken: String(token),
       resetPasswordExpires: { $gt: new Date() }
     }).select('+resetPasswordToken +resetPasswordExpires');
 
