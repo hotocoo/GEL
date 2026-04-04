@@ -12,7 +12,8 @@ import {
   useTheme,
   Container,
   Fab,
-  Tooltip
+  Tooltip,
+  LinearProgress
 } from '@mui/material';
 import { motion } from 'framer-motion';
 import {
@@ -21,44 +22,61 @@ import {
   School,
   TrendingUp,
   PlayArrow,
-  Add
+  Add,
+  Leaderboard
 } from '@mui/icons-material';
-import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import { coursesAPI, gamificationAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 const Dashboard = () => {
   const { auth } = useAuth();
   const [courses, setCourses] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const xpToNext = (auth.user?.level || 1) * 100;
-  const progress = (auth.user?.xp || 0) / xpToNext * 100;
+  const userLevel = stats?.level || auth.user?.level || 1;
+  const userXp = stats?.xp || auth.user?.xp || 0;
+  const xpToNext = userLevel * 100;
+  const progress = Math.min(100, Math.round((userXp / xpToNext) * 100));
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:5000/api/v1/courses');
-        setCourses(response.data);
-      } catch (error) {
-        console.error('Error fetching courses:', error);
-        // Set mock data for demo
-        setCourses([
-          { _id: '1', title: 'Computer Science Basics', subject: 'Computer Science' },
-          { _id: '2', title: 'Advanced Mathematics', subject: 'Mathematics' }
+        const [coursesRes, statsRes] = await Promise.allSettled([
+          coursesAPI.getAll({ limit: 6, status: 'published' }),
+          gamificationAPI.getUserStats()
         ]);
+
+        if (coursesRes.status === 'fulfilled') {
+          setCourses(coursesRes.value?.data?.courses || []);
+        } else {
+          // Fallback mock data
+          setCourses([
+            { _id: '1', title: 'Computer Science Basics', subject: 'Computer Science', description: 'Learn the fundamentals of CS.' },
+            { _id: '2', title: 'Advanced Mathematics', subject: 'Mathematics', description: 'Explore advanced mathematical concepts.' }
+          ]);
+        }
+
+        if (statsRes.status === 'fulfilled') {
+          setStats(statsRes.value?.data || null);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCourses();
+    fetchData();
   }, []);
 
-  const StatCard = ({ title, value, icon, gradient, subtitle, action, ...props }) => (
+  const StatCard = ({ title, value, icon, gradient, subtitle, action, onAction, ...props }) => (
     <motion.div
       whileHover={{ scale: isMobile ? 1.02 : 1.05 }}
       whileTap={{ scale: 0.98 }}
@@ -115,6 +133,7 @@ const Dashboard = () => {
             <Button
               variant="contained"
               startIcon={<PlayArrow />}
+              onClick={onAction}
               sx={{
                 mt: 'auto',
                 bgcolor: 'rgba(255,255,255,0.2)',
@@ -176,10 +195,11 @@ const Dashboard = () => {
             </Box>
             
             {!isMobile && (
-              <Tooltip title="Quick Actions">
+              <Tooltip title="View Leaderboard">
                 <Fab
                   color="primary"
-                  aria-label="add"
+                  aria-label="leaderboard"
+                  onClick={() => navigate('/leaderboard')}
                   sx={{
                     background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                     '&:hover': {
@@ -187,7 +207,7 @@ const Dashboard = () => {
                     }
                   }}
                 >
-                  <Add />
+                  <Leaderboard />
                 </Fab>
               </Tooltip>
             )}
@@ -197,39 +217,67 @@ const Dashboard = () => {
           <Grid container spacing={isMobile ? 2 : 3}>
             <Grid item xs={12} sm={6} lg={4}>
               <StatCard
-                title={`Level ${auth.user?.level || 1}`}
-                value={`${Math.round(progress)}%`}
+                title={`Level ${userLevel}`}
+                value={`${progress}%`}
                 icon={<EmojiEvents />}
                 gradient="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
-                subtitle={`XP: ${auth.user?.xp || 0} / ${xpToNext}`}
+                subtitle={`XP: ${userXp} / ${xpToNext}`}
                 action="View Progress"
+                onAction={() => navigate('/courses')}
               />
             </Grid>
 
             <Grid item xs={12} sm={6} lg={4}>
               <StatCard
                 title="Current Streak"
-                value={`${auth.user?.streak || 0}`}
+                value={`${stats?.streak ?? auth.user?.streak ?? 0} 🔥`}
                 icon={<Whatshot />}
                 gradient="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
-                subtitle={`${auth.user?.badges?.length || 0} badges earned`}
+                subtitle={`Longest: ${stats?.longestStreak ?? auth.user?.longestStreak ?? 0} days`}
                 action="View Achievements"
+                onAction={() => navigate('/leaderboard')}
               />
             </Grid>
 
             <Grid item xs={12} lg={4}>
               <StatCard
-                title="Subjects"
+                title="Courses"
                 value={courses.length}
                 icon={<School />}
                 gradient="linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)"
                 subtitle="Available to explore"
                 action="Browse Courses"
+                onAction={() => navigate('/courses')}
               />
             </Grid>
           </Grid>
 
-          {/* Course Preview Section */}
+          {/* XP Progress Bar */}
+          <Box mt={3} mb={1}>
+            <Box display="flex" justifyContent="space-between" mb={0.5}>
+              <Typography variant="body2" color="text.secondary">
+                Level {userLevel} Progress
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {userXp} / {xpToNext} XP
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              sx={{
+                height: 10,
+                borderRadius: 5,
+                backgroundColor: 'rgba(102,126,234,0.15)',
+                '& .MuiLinearProgress-bar': {
+                  borderRadius: 5,
+                  background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)'
+                }
+              }}
+            />
+          </Box>
+
+
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -243,6 +291,7 @@ const Dashboard = () => {
                 <Button
                   variant="outlined"
                   endIcon={<TrendingUp />}
+                  onClick={() => navigate('/courses')}
                   sx={{
                     borderRadius: '20px',
                     textTransform: 'none',
@@ -260,7 +309,7 @@ const Dashboard = () => {
 
               <Grid container spacing={2}>
                 {courses.slice(0, isMobile ? 2 : 3).map(course => (
-                  <Grid item xs={12} sm={6} md={4} key={course._id}>
+                  <Grid item xs={12} sm={6} md={4} key={course._id || course.id}>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                       <Card
                         sx={{
@@ -272,6 +321,7 @@ const Dashboard = () => {
                             transform: 'translateY(-2px)'
                           }
                         }}
+                        onClick={() => navigate('/courses')}
                       >
                         <CardContent>
                           <Box display="flex" alignItems="center" mb={2}>
@@ -298,6 +348,7 @@ const Dashboard = () => {
                           <Button
                             fullWidth
                             variant="contained"
+                            onClick={(e) => { e.stopPropagation(); navigate('/courses'); }}
                             sx={{
                               background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                               '&:hover': {
@@ -316,12 +367,37 @@ const Dashboard = () => {
             </Box>
           </motion.div>
 
+          {/* Leaderboard Quick Access */}
+          <Box mt={4} mb={4}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<Leaderboard />}
+              onClick={() => navigate('/leaderboard')}
+              sx={{
+                py: 1.5,
+                borderRadius: 3,
+                borderColor: '#667eea',
+                color: '#667eea',
+                textTransform: 'none',
+                fontSize: '1rem',
+                '&:hover': {
+                  borderColor: '#764ba2',
+                  backgroundColor: 'rgba(102, 126, 234, 0.04)'
+                }
+              }}
+            >
+              🏆 View Leaderboard
+            </Button>
+          </Box>
+
           {/* Mobile Quick Actions */}
           {isMobile && (
             <Box position="fixed" bottom={16} right={16}>
               <Fab
                 color="primary"
-                aria-label="add"
+                aria-label="browse courses"
+                onClick={() => navigate('/courses')}
                 sx={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   '&:hover': {

@@ -30,7 +30,7 @@ import {
   EmojiEvents,
   Close
 } from '@mui/icons-material';
-import axios from 'axios';
+import { authAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -116,21 +116,21 @@ const Login = () => {
     setErrors({});
 
     try {
-      const res = await axios.post('http://localhost:5000/api/v1/auth/login', {
+      const res = await authAPI.login({
         email: form.email.toLowerCase().trim(),
         password: form.password,
         rememberMe: form.rememberMe
       });
 
       // Store tokens
-      localStorage.setItem('token', res.data.data.token);
+      localStorage.setItem('token', res.data.token);
       if (form.rememberMe) {
-        localStorage.setItem('refreshToken', res.data.data.refreshToken);
+        localStorage.setItem('refreshToken', res.data.refreshToken);
       }
 
       setAuth({
-        token: res.data.data.token,
-        user: res.data.data.user
+        token: res.data.token,
+        user: res.data.user
       });
 
       // Success animation before navigation
@@ -139,7 +139,7 @@ const Login = () => {
       }, 500);
 
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Login failed. Please check your credentials and try again.';
+      const errorMessage = error.message || 'Login failed. Please check your credentials and try again.';
 
       setErrors({ general: errorMessage });
       setLoginAttempts(prev => prev + 1);

@@ -32,37 +32,37 @@ const cacheMiddleware = (ttl = 300) => {
 
     const cacheKey = generateCacheKey(req);
 
-    // Check if data exists in cache
-    cache.get(cacheKey, (err, cachedData) => {
-      if (err) {
-        console.error('Cache error:', err);
-        return next();
+    // Check if data exists in cache (node-cache v5+ uses synchronous API)
+    const cachedData = cache.get(cacheKey);
+
+    if (cachedData !== undefined) {
+      // Add cache hit header
+      res.set('X-Cache-Status', 'HIT');
+      const ttlRemaining = cache.getTtl(cacheKey);
+      if (ttlRemaining) {
+        res.set('X-Cache-TTL', String(Math.floor((ttlRemaining - Date.now()) / 1000)));
       }
 
-      if (cachedData) {
-        // Add cache hit header
-        res.set('X-Cache-Status', 'HIT');
-        res.set('X-Cache-TTL', cache.getTtl(cacheKey));
+      // Return cached data
+      return res.json(cachedData);
+    }
 
-        // Return cached data
-        return res.json(cachedData);
-      }
-
-      // Cache miss - store original json method
-      const originalJson = res.json;
-      res.json = function(data) {
-        // Cache the response data
+    // Cache miss - store original json method
+    const originalJson = res.json.bind(res);
+    res.json = function(data) {
+      // Only cache successful responses
+      if (res.statusCode >= 200 && res.statusCode < 300) {
         cache.set(cacheKey, data, ttl);
+      }
 
-        // Add cache miss header
-        res.set('X-Cache-Status', 'MISS');
+      // Add cache miss header
+      res.set('X-Cache-Status', 'MISS');
 
-        // Call original json method
-        return originalJson.call(this, data);
-      };
+      // Call original json method
+      return originalJson(data);
+    };
 
-      next();
-    });
+    next();
   };
 };
 

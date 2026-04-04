@@ -240,37 +240,45 @@ userSchema.index(
   }
 );
 
-// Virtual for XP to next level
+// Virtual for XP to next level (XP required for next level scales with level)
 userSchema.virtual('xpToNextLevel').get(function() {
   return this.level * 100;
 });
 
-// Virtual for level progress percentage
+// Virtual for level progress percentage (0-100)
 userSchema.virtual('levelProgress').get(function() {
-  return (this.xp % 100) / 100 * 100;
+  const xpNeeded = this.level * 100;
+  return Math.min(100, Math.round((this.xp / xpNeeded) * 100));
 });
 
-// Pre-save middleware to update total XP
+// Pre-save middleware to keep totalXp in sync
 userSchema.pre('save', function(next) {
   if (this.isModified('xp') || this.isModified('level')) {
-    this.totalXp = this.level * 100 + this.xp;
+    // totalXp = all XP accumulated across all levels
+    // Recalculate only if xp/level were changed outside of addXP
+    if (!this._xpMethodCalled) {
+      // Simple sync: totalXp stays as-is (addXP manages it precisely)
+    }
   }
+  this._xpMethodCalled = false;
   this.updatedAt = new Date();
   next();
 });
 
 // Method to add XP and handle level up
 userSchema.methods.addXP = function(xpAmount) {
-  this.xp += xpAmount;
+  if (xpAmount <= 0) return this.save();
+
   this.totalXp += xpAmount;
-  
-  // Level up logic
-  const newLevel = Math.floor(this.totalXp / 100) + 1;
-  if (newLevel > this.level) {
-    this.level = newLevel;
-    this.xp = this.totalXp % 100;
+  this.xp += xpAmount;
+  this._xpMethodCalled = true;
+
+  // Level up logic: each level requires level * 100 XP
+  while (this.xp >= this.level * 100) {
+    this.xp -= this.level * 100;
+    this.level += 1;
   }
-  
+
   return this.save();
 };
 
@@ -279,7 +287,7 @@ userSchema.methods.updateStreak = function() {
   const today = new Date();
   const lastLoginDate = new Date(this.lastLogin);
   const daysDiff = Math.floor((today - lastLoginDate) / (1000 * 60 * 60 * 24));
-  
+
   if (daysDiff === 1) {
     // Consecutive day
     this.streak += 1;
@@ -290,9 +298,10 @@ userSchema.methods.updateStreak = function() {
     // Streak broken
     this.streak = 1;
   }
-  
+  // daysDiff === 0 means same day login, streak unchanged
+
   this.lastLogin = today;
-  return this.save();
+  // Caller is responsible for calling save() to avoid double saves
 };
 
 // Static method to get leaderboard

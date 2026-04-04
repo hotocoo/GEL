@@ -40,7 +40,8 @@ import {
   Settings,
   Brightness6,
   AccountCircle,
-  Close
+  Close,
+  Leaderboard
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
@@ -115,6 +116,7 @@ const Navbar = () => {
         ...commonLinks,
         { to: '/dashboard', label: 'Dashboard', icon: <Dashboard /> },
         { to: '/courses', label: 'Courses', icon: <School /> },
+        { to: '/leaderboard', label: 'Leaderboard', icon: <Leaderboard /> },
         { to: '/achievements', label: 'Achievements', icon: <EmojiEvents /> }
       ];
     }

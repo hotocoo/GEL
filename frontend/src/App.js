@@ -12,6 +12,8 @@ const Login = React.lazy(() => import('./pages/Login'));
 const Signup = React.lazy(() => import('./pages/Signup'));
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Admin = React.lazy(() => import('./pages/Admin'));
+const Courses = React.lazy(() => import('./pages/Courses'));
+const LeaderboardPage = React.lazy(() => import('./pages/Leaderboard'));
 
 const theme = createTheme({
   palette: {
@@ -89,6 +91,8 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<Signup />} />
                   <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/courses" element={<Courses />} />
+                  <Route path="/leaderboard" element={<LeaderboardPage />} />
                   <Route path="/admin" element={<Admin />} />
                 </Routes>
               </Suspense>

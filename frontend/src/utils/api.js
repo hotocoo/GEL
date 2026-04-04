@@ -51,11 +51,14 @@ export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
   signup: (userData) => api.post('/auth/signup', userData),
   logout: () => api.post('/auth/logout'),
-  refreshToken: () => api.post('/auth/refresh'),
+  refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
   getProfile: () => api.get('/auth/profile'),
   updateProfile: (data) => api.put('/auth/profile', data),
   changePassword: (data) => api.post('/auth/change-password', data),
   verifyEmail: (token) => api.post('/auth/verify-email', { token }),
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, newPassword) => api.post('/auth/reset-password', { token, newPassword }),
+  getMe: () => api.get('/auth/me'),
 };
 
 export const coursesAPI = {
@@ -114,6 +117,11 @@ export const adminAPI = {
   manageCourse: (id, action) => api.post(`/admin/courses/${id}/${action}`),
   getAnalytics: (params) => api.get('/admin/analytics', { params }),
   getReports: (params) => api.get('/admin/reports', { params }),
+};
+
+export const leaderboardAPI = {
+  getGlobal: (params) => api.get('/leaderboard', { params }),
+  getBySubject: (subject, params) => api.get(`/leaderboard/subject/${subject}`, { params }),
 };
 
 // Utility functions for API responses

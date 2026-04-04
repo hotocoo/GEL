@@ -36,7 +36,7 @@ import {
   Warning,
   Error as ErrorIcon
 } from '@mui/icons-material';
-import axios from 'axios';
+import { authAPI } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -153,7 +153,7 @@ const Signup = () => {
         role: form.role
       };
 
-      await axios.post('http://localhost:5000/api/v1/auth/signup', signupData);
+      await authAPI.signup(signupData);
 
       // Success animation
       setSignupStep(2);
@@ -167,7 +167,7 @@ const Signup = () => {
       }, 2000);
 
     } catch (error) {
-      const errorMessage = error.response?.data?.error || 'Signup failed. Please try again.';
+      const errorMessage = error.message || 'Signup failed. Please try again.';
 
       setErrors({ general: errorMessage });
     } finally {

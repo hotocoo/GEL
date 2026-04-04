@@ -93,10 +93,6 @@ router.post('/signup', validateSignup, asyncHandler(async (req, res) => {
     
     await user.save();
     
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-    
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
     
     res.status(201).json({
@@ -186,8 +182,7 @@ router.post('/login', validateLogin, asyncHandler(async (req, res) => {
     }
     
     // Update login tracking
-    user.lastLogin = new Date();
-    await user.updateStreak();
+    user.updateStreak(); // mutates in place, no extra save
     await user.save();
     
     const { accessToken, refreshToken } = generateTokens(user._id, user.role);
@@ -215,13 +210,19 @@ router.post('/login', validateLogin, asyncHandler(async (req, res) => {
     }
     
     // Update login tracking for mock user
+    const prevLastLogin = user.lastLogin ? new Date(user.lastLogin) : null;
     user.lastLogin = new Date();
-    if (Math.floor((new Date() - new Date(user.lastLogin)) / (1000 * 60 * 60 * 24)) === 1) {
-      user.streak = (user.streak || 0) + 1;
-      if (user.streak > (user.longestStreak || 0)) {
-        user.longestStreak = user.streak;
+    if (prevLastLogin) {
+      const daysDiff = Math.floor((user.lastLogin - prevLastLogin) / (1000 * 60 * 60 * 24));
+      if (daysDiff === 1) {
+        user.streak = (user.streak || 0) + 1;
+        if (user.streak > (user.longestStreak || 0)) {
+          user.longestStreak = user.streak;
+        }
+      } else if (daysDiff > 1) {
+        user.streak = 1;
       }
-    } else if (Math.floor((new Date() - new Date(user.lastLogin)) / (1000 * 60 * 60 * 24)) > 1) {
+    } else {
       user.streak = 1;
     }
     
@@ -486,6 +487,86 @@ router.post('/verify-email', auth, asyncHandler(async (req, res) => {
     res.json({
       success: true,
       message: 'Email verification completed (demo mode)'
+    });
+  }
+}));
+
+// @route   POST /api/v1/auth/forgot-password
+// @desc    Request a password reset token (sent via console/email)
+// @access  Public
+router.post('/forgot-password', asyncHandler(async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  if (isDbConnected()) {
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    // Always return success to prevent email enumeration attacks
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = resetExpires;
+      await user.save();
+
+      // In production you would send an email here. For now, log the token.
+      console.log(`[Password Reset] Token for ${email}: ${resetToken}`);
+    }
+
+    res.json({
+      success: true,
+      message: 'If that email is registered, a reset link has been sent.'
+    });
+  } else {
+    res.json({
+      success: true,
+      message: 'If that email is registered, a reset link has been sent. (demo mode)'
+    });
+  }
+}));
+
+// @route   POST /api/v1/auth/reset-password
+// @desc    Reset password using a valid reset token
+// @access  Public
+router.post('/reset-password', asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+  }
+
+  if (isDbConnected()) {
+    const user = await User.findOne({
+      resetPasswordToken: token,
+      resetPasswordExpires: { $gt: new Date() }
+    }).select('+resetPasswordToken +resetPasswordExpires');
+
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
+    user.password = await bcrypt.hash(newPassword, saltRounds);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password has been reset successfully. You can now log in.'
+    });
+  } else {
+    res.json({
+      success: true,
+      message: 'Password reset successful (demo mode)'
     });
   }
 }));
