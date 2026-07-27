@@ -1,0 +1,9 @@
+# GEL
+node_modules/
+*.pyc
+__pycache__
+.env
+api/.venv
+api/data/*.json
+.webpack
+.next/

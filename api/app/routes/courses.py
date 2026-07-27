@@ -1,0 +1,222 @@
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from app.core.deps import CurrentUser
+from app.core.store import Course, CourseProgress, Lesson, LessonCompletion, iso_now
+
+
+router = APIRouter(prefix="/courses", tags=["courses"])
+
+
+@router.get("", response_model=list[dict])
+async def list_courses(
+    category: str | None = Query(None),
+    difficulty: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+):
+    courses = Course.objects().all()
+    
+    if category:
+        courses = [c for c in courses if c.category == category]
+    if difficulty:
+        courses = [c for c in courses if c.difficulty == difficulty]
+    
+    courses = [c for c in courses if c.is_published]
+    courses.sort(key=lambda c: c.created_at, reverse=True)
+    courses = courses[offset : offset + limit]
+
+    return [
+        {
+            "id": c.id,
+            "slug": c.slug,
+            "title": c.title,
+            "description": (c.description or "")[:200],
+            "category": c.category,
+            "difficulty": c.difficulty,
+            "xp_reward": c.xp_reward,
+            "estimated_duration_minutes": c.estimated_duration_minutes,
+        }
+        for c in courses
+    ]
+
+
+@router.get("/{course_id}", response_model=dict)
+async def get_course(course_id: int):
+    course = Course.objects().get(id=course_id)
+    if not course or not course.is_published:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    lessons = sorted(
+        [l for l in Lesson.objects().all() if l.course_id == course_id and l.is_published],
+        key=lambda l: l.order_index,
+    )
+
+    return {
+        "id": course.id,
+        "slug": course.slug,
+        "title": course.title,
+        "description": course.description,
+        "category": course.category,
+        "subject": course.subject,
+        "difficulty": course.difficulty,
+        "xp_reward": course.xp_reward,
+        "estimated_duration_minutes": course.estimated_duration_minutes,
+        "lessons": [
+            {"id": l.id, "slug": l.slug, "title": l.title, "content_type": l.content_type, "xp_reward": l.xp_reward}
+            for l in lessons
+        ],
+    }
+
+
+@router.post("/{course_id}/enroll")
+async def enroll_in_course(course_id: int, user: CurrentUser):
+    course = Course.objects().get(id=course_id)
+    if not course or not course.is_published:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    for cp in CourseProgress.objects().all():
+        if cp.user_id == user.id and cp.course_id == course_id:
+            raise HTTPException(status_code=400, detail="Already enrolled in this course")
+
+    progress = await CourseProgress.objects().create(user_id=user.id, course_id=course_id)
+    return {"message": "Enrolled successfully", "progress_id": progress.id}
+
+
+@router.get("/{course_id}/lessons/{lesson_id}")
+async def get_lesson(course_id: int, lesson_id: int):
+    lesson = Lesson.objects().get(id=lesson_id)
+    if not lesson or lesson.course_id != course_id or not lesson.is_published:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    return {
+        "id": lesson.id,
+        "slug": lesson.slug,
+        "title": lesson.title,
+        "content_html": lesson.content_html,
+        "content_type": lesson.content_type,
+        "media_data": lesson.media_data,
+        "questions": lesson.questions,
+        "xp_reward": int(lesson.xp_reward),
+    }
+
+
+@router.post("/{course_id}/lessons/{lesson_id}/complete")
+async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, request_body: dict):
+    score = float(request_body.get("score", 0))
+    attempts = max(int(request_body.get("attempts", 1)), 1)
+    time_spent = max(int(request_body.get("time_spent_seconds", 0)), 0)
+    answers = request_body.get("answers", [])
+
+    lesson = Lesson.objects().get(id=lesson_id)
+    if not lesson or lesson.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Lesson not found")
+
+    score = min(max(score, 0), 100)
+
+    cp = None
+    for p in CourseProgress.objects().all():
+        if p.user_id == user.id and p.course_id == course_id:
+            cp = p
+            break
+
+    if not cp:
+        raise HTTPException(status_code=400, detail="Not enrolled in this course")
+
+    existing_lc = None
+    for lc in LessonCompletion.objects().all():
+        if lc.course_progress_id == cp.id and lc.lesson_id == lesson_id:
+            existing_lc = lc
+            break
+
+    is_first_completion = existing_lc is None
+    xp_earned = int(lesson.xp_reward * float(lesson.difficulty_multiplier) * max(score / 100.0, 0.2))
+
+    if existing_lc:
+        existing_lc.score = score
+        existing_lc.attempts += 1
+        existing_lc.time_spent_seconds += time_spent
+        existing_lc.answers = answers
+        existing_lc.xp_earned = xp_earned
+        await LessonCompletion.objects().update(existing_lc)
+    else:
+        await LessonCompletion.objects().create(
+            course_progress_id=cp.id, lesson_id=lesson_id, score=score, attempts=attempts,
+            time_spent_seconds=time_spent, xp_earned=xp_earned, answers=answers,
+        )
+
+    if is_first_completion:
+        cp.lessons_completed_count += 1
+
+    cp.last_accessed_at = iso_now()
+
+    # Update course average score
+    completions = [lc for lc in LessonCompletion.objects().all() if lc.course_progress_id == cp.id]
+    if completions:
+        cp.total_score = float(sum(c.score for c in completions) / len(completions))
+
+    # Check course completion
+    total_lessons = len([l for l in Lesson.objects().all() if l.course_id == course_id and l.is_published])
+    if cp.lessons_completed_count >= total_lessons and not cp.is_completed:
+        cp.is_completed = True
+        course = Course.objects().get(id=course_id)
+        if course:
+            user.add_xp(int(course.xp_reward))
+
+    await CourseProgress.objects().update(cp)
+
+    leveled_up, new_level = user.add_xp(xp_earned)
+    await User.objects().update(user)
+
+    return {
+        "message": "Lesson completed",
+        "xp_earned": xp_earned,
+        "score": float(cp.total_score),
+        "is_first_completion": is_first_completion,
+        "lessons_completed": cp.lessons_completed_count,
+        "course_completed": cp.is_completed,
+        "leveled_up": leveled_up,
+        "new_level": new_level if leveled_up else user.level,
+    }
+
+
+@router.get("/my-progress", response_model=list[dict])
+async def my_course_progress(user: CurrentUser):
+    cps = [cp for cp in CourseProgress.objects().all() if cp.user_id == user.id]
+    result = []
+    for cp in sorted(cps, key=lambda x: x.last_accessed_at, reverse=True):
+        course = Course.objects().get(id=cp.course_id)
+        if course:
+            result.append({
+                "progress_id": cp.id, "course_id": cp.course_id, "slug": course.slug, "title": course.title,
+                "category": course.category, "lessons_completed": cp.lessons_completed_count,
+                "average_score": float(cp.total_score), "is_completed": cp.is_completed,
+                "last_accessed_at": cp.last_accessed_at,
+            })
+    return result
+
+
+@router.get("/{course_id}/progress", response_model=dict)
+async def get_course_progress(course_id: int, user: CurrentUser):
+    cp = None
+    for p in CourseProgress.objects().all():
+        if p.user_id == user.id and p.course_id == course_id:
+            cp = p
+            break
+
+    if not cp:
+        raise HTTPException(status_code=404, detail="Not enrolled in this course")
+
+    completed_ids = [lc.lesson_id for lc in LessonCompletion.objects().all() if lc.course_progress_id == cp.id]
+
+    return {
+        "progress_id": cp.id,
+        "course_id": course_id,
+        "lessons_completed": cp.lessons_completed_count,
+        "average_score": float(cp.total_score),
+        "is_completed": cp.is_completed,
+        "completed_lesson_ids": completed_ids,
+    }
+
+
+# Import for the function above — at module level to match route imports
+from app.core.store import User  # noqa: E402 F401
