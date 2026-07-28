@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.core.deps import CurrentUser
 from app.core.store import User, iso_now
+from app.routes.notifications import notify_user
 
 router = APIRouter(prefix="/friends", tags=["friends"])
 
@@ -102,9 +103,20 @@ async def accept_friend(user: CurrentUser, request_id: int):
 
     for entry in friends_data:
         if entry["id"] == request_id and entry["friend_id"] == user.id and entry.get("status") == "pending":
+            requester_id = entry["friend_id"]
+            requester = User.objects().get(id=requester_id)
             entry["status"] = "accepted"
             entry["updated_at"] = iso_now()
             _save_friends()
+            
+            # Notify the friend request sender
+            if requester:
+                await notify_user(
+                    requester.id, "friend_accepted", f"{user.username} accepted your friend request!",
+                    message=f"You're now friends with {user.username}. Check out their profile!",
+                    data={"friend_id": user.id},
+                )
+            
             return {"message": "Friend request accepted"}
 
     raise HTTPException(status_code=404, detail="Friend request not found")

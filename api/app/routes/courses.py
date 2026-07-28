@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.deps import CurrentUser
 from app.core.store import Achievement, Course, CourseProgress, Lesson, LessonCompletion, User, iso_now
+from app.routes.notifications import notify_user
 from app.schemas.auth import (
     CourseDetail, CourseListItem, CourseProgressItem, LessonCompletionResponse,
     LessonContent, LessonPublic,
@@ -165,10 +166,22 @@ async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, req
         course = Course.objects().get(id=course_id)
         if course:
             user.add_xp(int(course.xp_reward))
+            await notify_user(
+                user.id, "course_completed", f"Course Completed: {course.title}",
+                message=f"You've finished all lessons in {course.title}. Claim your certificate!",
+                data={"course_id": course.id, "course_title": course.title},
+            )
 
     await CourseProgress.objects().update(cp)
 
     leveled_up, new_level = user.add_xp(xp_earned)
+    
+    if leveled_up:
+        await notify_user(
+            user.id, "level_up", f"Level Up! You're now level {new_level}!",
+            message=f"Keep going — you've reached level {new_level}.",
+            data={"new_level": new_level},
+        )
     
     # Auto-check achievements after XP gain
     newly_unlocked = []
