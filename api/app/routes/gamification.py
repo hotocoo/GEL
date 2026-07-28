@@ -128,26 +128,29 @@ async def check_and_award_achievements(user: CurrentUser):
 @router.post("/streak-bonus", response_model=StreakBonusResponse)
 async def claim_streak_bonus(user: _CurrentUser):
     """Claim extra XP for maintaining a streak."""
-    if user.streak_current < 2:
+    try:
+        if user.streak_current < 2:
+            return StreakBonusResponse(
+                message="Streak bonus available from day 2 onwards",
+                xp_awarded=0, streak_current=user.streak_current, leveled_up=False
+            )
+
+        base_bonus = 10
+        multiplier = min(user.streak_current - 1, 20) * 5
+        bonus_xp = base_bonus + multiplier
+
+        original_level = user.level
+        user.add_xp(bonus_xp)
+        leveled_up = user.level > original_level
+
+        await User.objects().update(user)
+
         return StreakBonusResponse(
-            message="Streak bonus available from day 2 onwards",
-            xp_awarded=0, streak_current=user.streak_current, leveled_up=False
+            message=f"Streak bonus claimed: +{bonus_xp} XP",
+            xp_awarded=bonus_xp, streak_current=user.streak_current, leveled_up=leveled_up,
         )
-
-    base_bonus = 10
-    multiplier = min(user.streak_current - 1, 20) * 5
-    bonus_xp = base_bonus + multiplier
-
-    original_level = user.level
-    user.add_xp(bonus_xp)
-    leveled_up = user.level > original_level
-
-    await User.objects().update(user)
-
-    return StreakBonusResponse(
-        message=f"Streak bonus claimed: +{bonus_xp} XP",
-        xp_awarded=bonus_xp, streak_current=user.streak_current, leveled_up=leveled_up,
-    )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error claiming streak bonus: {e}")
 
 
 @router.get("/course-completion/{course_id}/certificate", response_model=CourseCertificateResponse)

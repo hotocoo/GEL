@@ -168,15 +168,20 @@ async def mark_all_read(user: CurrentUser):
 @router.delete("/{notif_id}")
 async def delete_notification(user: CurrentUser, notif_id: int):
     """Delete a notification."""
-    from app.core.store import storage
+    try:
+        from app.core.store import storage
 
-    notifs = storage._data.get("notifications", [])
-    for i, n in enumerate(notifs):
-        if n.get("id") == notif_id and n.get("user_id") == user.id:
-            notifs.pop(i)
-            break
+        notifs = storage._data.get("notifications", [])
+        for i, n in enumerate(notifs):
+            if n.get("id") == notif_id and n.get("user_id") == user.id:
+                notifs.pop(i)
+                return {"message": "Notification deleted"}
 
-    return {"message": "Notification deleted"}
+        raise HTTPException(status_code=404, detail="Notification not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting notification: {e}")
 
 
 # Internal helper called by other routes when events happen
