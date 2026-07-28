@@ -39,11 +39,13 @@ def create_app() -> FastAPI:
     async def on_shutdown():
         await close_db()
 
+    from app.routes.admin import router as admin_router
     from app.routes.auth import router as auth_router  # noqa: F401 PLC2701
     from app.routes.courses import router as courses_router  # noqa: F401 PLC2701
     from app.routes.gamification import router as gamification_router  # noqa: F401 PLC2701
 
     api_prefix = "/api/v1"
+    app.include_router(admin_router, prefix=api_prefix)
     app.include_router(auth_router, prefix=api_prefix)
     app.include_router(courses_router, prefix=api_prefix)
     app.include_router(gamification_router, prefix=api_prefix)
