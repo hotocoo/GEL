@@ -219,3 +219,58 @@ class CourseAdminItem(BaseModel):
 class GenericMessageResponse(BaseModel):
     message: str
 
+
+# ---- Request body schemas ----
+
+class EnrollRequest(BaseModel):
+    class Config:
+        frozen = True
+
+
+class LessonCompletionRequest(BaseModel):
+    score: float = 0.0
+    attempts: int = 1
+    time_spent_seconds: int = 0
+    answers: list = []
+
+    @field_validator("score")
+    @classmethod
+    def validate_score(cls, v):
+        if not (0 <= v <= 100):
+            raise ValueError("Score must be between 0 and 100")
+        return v
+
+
+class UpdateUserProfileRequest(BaseModel):
+    username: str | None = None
+    avatar_url: str | None = None
+
+    @field_validator("username")
+    @classmethod
+    def validate_username(cls, v):
+        if v is None:
+            return v
+        import re
+        if not re.match(r'^[a-z0-9_]{3,32}$', v):
+            raise ValueError("Username must be 3-32 chars, lowercase letters/digits/underscore")
+        return v
+
+
+class AdminUserUpdateRequest(BaseModel):
+    role: str | None = None
+    is_active: bool | None = None
+
+
+class LessonCreateRequest(BaseModel):
+    title: str
+    content_html: str = ""
+    xp_reward: int = 25
+    questions: list[dict] = []
+
+
+class LessonUpdateRequest(BaseModel):
+    title: str | None = None
+    content_html: str | None = None
+    xp_reward: int | None = None
+    questions: list[dict] | None = None
+    order_index: int | None = None

@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.deps import AdminUser
 from app.core.store import User, Course, Lesson, Achievement, iso_now
 from app.schemas.auth import (
+    AdminUserUpdateRequest, LessonCreateRequest, LessonUpdateRequest,
     AdminStatsResponse, AdminUsersListResponse, AdminUserItem,
     CourseAdminItem, GenericMessageResponse,
 )
@@ -63,7 +64,10 @@ async def update_admin_user(
     if not target:
         raise HTTPException(status_code=404, detail="User not found")
 
-    allowed_fields = {"role", "is_active"}
+    if data.role is not None:
+        target.role = data.role
+    if data.is_active is not None:
+        target.is_active = data.is_active
     for field in allowed_fields:
         if field in data:
             setattr(target, field, data[field])

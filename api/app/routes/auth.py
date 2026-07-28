@@ -9,6 +9,7 @@ from app.core.deps import CurrentUser
 from app.core.security import create_access_token, create_refresh_token, decode_token, hash_password, verify_password
 from app.core.store import User, iso_now
 from app.schemas.auth import (
+    UpdateUserProfileRequest,
     ChangePasswordRequest, LoginRequest, RefreshTokenRequest, SignupRequest, TokenResponse, UserPublic,
 )
 
@@ -144,8 +145,8 @@ async def reset_password(body: dict):
     await User.objects().update(user)
     return {"message": "Password has been reset"}
 
-@router.put("/me/profile")
-async def update_profile(data: dict, user: CurrentUser):
+@router.put("/me/profile", response_model=UserPublic)
+async def update_profile(data: UpdateUserProfileRequest, user: CurrentUser):
     """Update user profile settings."""
     allowed_fields = {"username", "avatar_url"}
     

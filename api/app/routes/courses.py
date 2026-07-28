@@ -6,8 +6,8 @@ from app.core.deps import CurrentUser
 from app.core.store import Achievement, Course, CourseProgress, Lesson, LessonCompletion, User, iso_now
 from app.routes.notifications import notify_user
 from app.schemas.auth import (
-    CourseDetail, CourseListItem, CourseProgressItem, LessonCompletionResponse,
-    LessonContent, LessonPublic,
+    CourseDetail, CourseListItem, CourseProgressItem, LessonCompletionRequest,
+    LessonCompletionResponse, LessonContent, LessonPublic,
 )
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -106,11 +106,11 @@ async def get_lesson(course_id: int, lesson_id: int):
 
 
 @router.post("/{course_id}/lessons/{lesson_id}/complete")
-async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, request_body: dict):
-    score = float(request_body.get("score", 0))
-    attempts = max(int(request_body.get("attempts", 1)), 1)
-    time_spent = max(int(request_body.get("time_spent_seconds", 0)), 0)
-    answers = request_body.get("answers", [])
+async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, body: LessonCompletionRequest):
+    score = body.score
+    attempts = max(body.attempts, 1)
+    time_spent = max(body.time_spent_seconds, 0)
+    answers = body.answers
 
     lesson = Lesson.objects().get(id=lesson_id)
     if not lesson or lesson.course_id != course_id:
