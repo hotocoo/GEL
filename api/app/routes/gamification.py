@@ -3,13 +3,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query
 
 from app.core.deps import CurrentUser
+from app.core.deps import CurrentUser as _CurrentUser
 from app.core.store import Achievement, User
+from app.schemas.auth import LeaderboardResponse, AchievementPublic, UserStatsResponse, StreakBonusResponse, CourseCertificateResponse
 
 
 router = APIRouter(prefix="/gamification", tags=["gamification"])
 
 
-@router.get("/leaderboard")
+@router.get("/leaderboard", response_model=LeaderboardResponse)
 async def leaderboard(limit: int = Query(50, ge=1, le=200)):
     users = [u for u in User.objects().all() if u.is_active]
     users.sort(key=lambda u: (u.level, u.total_xp_earned), reverse=True)
@@ -37,7 +39,7 @@ async def leaderboard(limit: int = Query(50, ge=1, le=200)):
     return {"leaderboard": result}
 
 
-@router.get("/achievements")
+@router.get("/achievements", response_model=list[AchievementPublic])
 async def list_achievements(rarity: str | None = Query(None)):
     achievements = [a for a in Achievement.objects().all() if a.is_active]
     if rarity:
@@ -53,7 +55,7 @@ async def list_achievements(rarity: str | None = Query(None)):
     ]
 
 
-@router.get("/user-stats")
+@router.get("/user-stats", response_model=UserStatsResponse)
 async def user_stats(user: CurrentUser):
     from app.core.store import xp_for_level
 
@@ -69,21 +71,19 @@ async def user_stats(user: CurrentUser):
     }
 
 
-@router.get("/user-achievements")
-async def user_achievements(user: CurrentUser):
+@router.get("/user-achievements", response_model=list[AchievementPublic])
+async def user_achievements(user: _CurrentUser):
     if not user.achievement_ids:
-        return {"achievements": []}
+        return []
 
     all_achievements = Achievement.objects().all()
     unlocked = [a for a in all_achievements if a.id in user.achievement_ids]
 
-    return {
-        "achievements": [
-            {"id": a.id, "slug": a.slug, "title": a.title, "description": a.description,
-             "rarity": a.rarity, "icon_url": a.icon_url}
-            for a in unlocked
-        ]
-    }
+    return [
+        AchievementPublic(id=a.id, slug=a.slug, title=a.title, description=a.description,
+                         rarity=a.rarity, icon_url=a.icon_url)
+        for a in unlocked
+    ]
 
 
 @router.post("/check-achievements")
@@ -125,7 +125,7 @@ async def check_and_award_achievements(user: CurrentUser):
 
     return {"newly_unlocked": newly_unlocked, "total_achievements": len(user.achievement_ids)}
 
-@router.post("/streak-bonus")
+@router.post("/streak-bonus", response_model=StreakBonusResponse)
 async def claim_streak_bonus(user: CurrentUser):
     """Claim extra XP for maintaining a streak."""
     if user.streak_current < 2:
@@ -150,7 +150,7 @@ async def claim_streak_bonus(user: CurrentUser):
     }
 
 
-@router.get("/course-completion/{course_id}/certificate")
+@router.get("/course-completion/{course_id}/certificate", response_model=CourseCertificateResponse)
 async def get_course_certificate(course_id: int, user: CurrentUser):
     """Generate a completion certificate data for finished courses."""
     from app.core.store import CourseProgress

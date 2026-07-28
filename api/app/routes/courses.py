@@ -4,12 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.deps import CurrentUser
 from app.core.store import Achievement, Course, CourseProgress, Lesson, LessonCompletion, User, iso_now
-
+from app.schemas.auth import (
+    CourseDetail, CourseListItem, CourseProgressItem, LessonCompletionResponse,
+    LessonContent, LessonPublic,
+)
 
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
-@router.get("", response_model=list[dict])
+@router.get("", response_model=list[CourseListItem])
 async def list_courses(
     category: str | None = Query(None),
     difficulty: str | None = Query(None),
@@ -28,21 +31,16 @@ async def list_courses(
     courses = courses[offset : offset + limit]
 
     return [
-        {
-            "id": c.id,
-            "slug": c.slug,
-            "title": c.title,
-            "description": (c.description or "")[:200],
-            "category": c.category,
-            "difficulty": c.difficulty,
-            "xp_reward": c.xp_reward,
-            "estimated_duration_minutes": c.estimated_duration_minutes,
-        }
+        CourseListItem(
+            id=c.id, slug=c.slug, title=c.title, description=(c.description or "")[:200],
+            category=c.category, difficulty=c.difficulty, xp_reward=c.xp_reward,
+            estimated_duration_minutes=c.estimated_duration_minutes,
+        )
         for c in courses
     ]
 
 
-@router.get("/{course_id}", response_model=dict)
+@router.get("/{course_id}", response_model=CourseDetail)
 async def get_course(course_id: int):
     course = Course.objects().get(id=course_id)
     if not course or not course.is_published:
@@ -53,21 +51,12 @@ async def get_course(course_id: int):
         key=lambda l: l.order_index,
     )
 
-    return {
-        "id": course.id,
-        "slug": course.slug,
-        "title": course.title,
-        "description": course.description,
-        "category": course.category,
-        "subject": course.subject,
-        "difficulty": course.difficulty,
-        "xp_reward": course.xp_reward,
-        "estimated_duration_minutes": course.estimated_duration_minutes,
-        "lessons": [
-            {"id": l.id, "slug": l.slug, "title": l.title, "content_type": l.content_type, "xp_reward": l.xp_reward}
-            for l in lessons
-        ],
-    }
+    return CourseDetail(
+        id=course.id, slug=course.slug, title=course.title, description=course.description or "",
+        category=course.category, difficulty=course.difficulty, xp_reward=course.xp_reward,
+        estimated_duration_minutes=course.estimated_duration_minutes, subject=course.subject,
+        lessons=[LessonPublic(id=l.id, slug=l.slug, title=l.title) for l in lessons],
+    )
 
 
 @router.post("/{course_id}/enroll")
@@ -84,22 +73,18 @@ async def enroll_in_course(course_id: int, user: CurrentUser):
     return {"message": "Enrolled successfully", "progress_id": progress.id}
 
 
-@router.get("/{course_id}/lessons/{lesson_id}")
+@router.get("/{course_id}/lessons/{lesson_id}", response_model=LessonContent)
 async def get_lesson(course_id: int, lesson_id: int):
     lesson = Lesson.objects().get(id=lesson_id)
     if not lesson or lesson.course_id != course_id or not lesson.is_published:
         raise HTTPException(status_code=404, detail="Lesson not found")
 
-    return {
-        "id": lesson.id,
-        "slug": lesson.slug,
-        "title": lesson.title,
-        "content_html": lesson.content_html,
-        "content_type": lesson.content_type,
-        "media_data": lesson.media_data,
-        "questions": lesson.questions,
-        "xp_reward": int(lesson.xp_reward),
-    }
+    return LessonContent(
+        id=lesson.id, slug=lesson.slug, title=lesson.title,
+        content_html=lesson.content_html, content_type=lesson.content_type,
+        media_data=lesson.media_data or {}, questions=lesson.questions or [],
+        xp_reward=int(lesson.xp_reward),
+    )
 
 
 @router.post("/{course_id}/lessons/{lesson_id}/complete")
@@ -191,35 +176,35 @@ async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, req
 
     await User.objects().update(user)
 
-    return {
-        "message": "Lesson completed",
-        "xp_earned": xp_earned,
-        "score": float(cp.total_score),
-        "is_first_completion": is_first_completion,
-        "lessons_completed": cp.lessons_completed_count,
-        "course_completed": cp.is_completed,
-        "leveled_up": leveled_up,
-        "new_level": new_level if leveled_up else user.level,
-    }
+    return LessonCompletionResponse(
+        message="Lesson completed",
+        xp_earned=xp_earned,
+        score=float(cp.total_score),
+        is_first_completion=is_first_completion,
+        lessons_completed=cp.lessons_completed_count,
+        course_completed=cp.is_completed,
+        leveled_up=leveled_up,
+        new_level=new_level if leveled_up else user.level,
+    )
 
 
-@router.get("/my-progress", response_model=list[dict])
+@router.get("/my-progress", response_model=list[CourseProgressItem])
 async def my_course_progress(user: CurrentUser):
     cps = [cp for cp in CourseProgress.objects().all() if cp.user_id == user.id]
     result = []
     for cp in sorted(cps, key=lambda x: x.last_accessed_at, reverse=True):
         course = Course.objects().get(id=cp.course_id)
         if course:
-            result.append({
-                "progress_id": cp.id, "course_id": cp.course_id, "slug": course.slug, "title": course.title,
-                "category": course.category, "lessons_completed": cp.lessons_completed_count,
-                "average_score": float(cp.total_score), "is_completed": cp.is_completed,
-                "last_accessed_at": cp.last_accessed_at,
-            })
+            result.append(CourseProgressItem(
+                progress_id=cp.id, course_id=cp.course_id, slug=course.slug, title=course.title,
+                category=course.category, lessons_completed=cp.lessons_completed_count,
+                average_score=float(cp.total_score), is_completed=cp.is_completed,
+                last_accessed_at=cp.last_accessed_at,
+            ))
     return result
 
 
-@router.get("/{course_id}/progress", response_model=dict)
+@router.get("/{course_id}/progress")
 async def get_course_progress(course_id: int, user: CurrentUser):
     cp = None
     for p in CourseProgress.objects().all():
@@ -241,8 +226,6 @@ async def get_course_progress(course_id: int, user: CurrentUser):
         "completed_lesson_ids": completed_ids,
     }
 
-
-from app.core.store import User  # noqa: E402 F401
 
 @router.get("/search")
 async def search_courses(
