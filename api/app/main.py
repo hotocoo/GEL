@@ -45,7 +45,8 @@ def create_app() -> FastAPI:
     from app.routes.gamification import router as gamification_router
     from app.routes.quests import router as quests_router
     from app.routes.friends import router as friends_router
-    from app.routes.notifications import router as notifications_router  # noqa: F401 PLC2701
+    from app.routes.notifications import router as notifications_router
+    from app.routes.config import router as config_router  # noqa: F401 PLC2701
 
     api_prefix = "/api/v1"
     app.include_router(admin_router, prefix=api_prefix)
@@ -55,6 +56,7 @@ def create_app() -> FastAPI:
     app.include_router(quests_router, prefix=api_prefix)
     app.include_router(friends_router, prefix=api_prefix)
     app.include_router(notifications_router, prefix=api_prefix)
+    app.include_router(config_router, prefix=api_prefix)
 
     @app.get("/health")
     async def health_check():
