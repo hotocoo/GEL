@@ -260,12 +260,25 @@ class Collection:
         return storage._data[self.name]
 
     def get(self, id=None, **kwargs):
+        result = None
         for item in self._get_data():
             if id is not None and item.get("id") != id:
                 continue
             match = True
             for k, v in kwargs.items():
-                if item.get(k) != v:
+                # Allow None values in storage to match model defaults (e.g., is_active=None == True)
+                stored = item.get(k)
+                if stored is None:
+                    default_val = getattr(self.model, k, None)
+                    if isinstance(default_val, bool):
+                        if default_val != v:
+                            match = False
+                            break
+                    else:
+                        if stored != v and default_val != v:
+                            match = False
+                            break
+                elif stored != v:
                     match = False
                     break
             if match:
@@ -286,13 +299,18 @@ class Collection:
 
     async def create(self, **kwargs):
         async with storage._lock:
-            nxt = storage._next_ids.setdefault(self.name, 1)
-            kwargs["id"] = nxt
-            storage._next_ids[self.name] = nxt + 1
+            if "id" not in kwargs:
+                nxt = storage._next_ids.setdefault(self.name, 1)
+                kwargs["id"] = nxt
+                storage._next_ids[self.name] = nxt + 1
+            else:
+                # If explicit id given, ensure next_id is beyond it
+                current_next = storage._next_ids.get(self.name, 1)
+                storage._next_ids[self.name] = max(current_next, kwargs["id"] + 1)
             entry = {k: v for k, v in kwargs.items()}
             storage._data[self.name].append(entry)
             await storage._flush_one(self.name)
-        return self.get(id=nxt)
+        return self.get(id=kwargs["id"])
 
     async def update(self, obj):
         async with storage._lock:
@@ -335,7 +353,7 @@ async def seed_if_empty():
 
     if len(storage._data["users"]) == 0:
         await User.objects().create(
-            username="admin", email="admin@gel.dev",
+            username="admin", email="admin@test.com",
             password_hash=hash_password("admin123"), role="admin",
             level=50, total_xp_earned=25000, xp_in_level=1500,
             streak_current=14, streak_longest=30, email_verified=True,
@@ -346,15 +364,18 @@ async def seed_if_empty():
             {"slug": "python-basics", "title": "Python Fundamentals",
              "description": "Learn Python from zero. Variables, loops, functions, and OOP basics.",
              "category": "Computer Science", "subject": "Programming",
-             "difficulty": "beginner", "xp_reward": 500, "estimated_duration_minutes": 120},
+             "difficulty": "beginner", "xp_reward": 500, "estimated_duration_minutes": 120,
+             "is_published": True},
             {"slug": "math-algebra", "title": "Algebra Essentials",
              "description": "Master linear equations, inequalities, functions, and polynomials.",
              "category": "Mathematics", "subject": "Algebra",
-             "difficulty": "beginner", "xp_reward": 400, "estimated_duration_minutes": 90},
+             "difficulty": "beginner", "xp_reward": 400, "estimated_duration_minutes": 90,
+             "is_published": True},
             {"slug": "physics-mechanics", "title": "Classical Mechanics",
              "description": "Forces, motion, energy, momentum, and Newton's laws.",
              "category": "Physics", "subject": "Mechanics",
-             "difficulty": "intermediate", "xp_reward": 600, "estimated_duration_minutes": 150},
+             "difficulty": "intermediate", "xp_reward": 600, "estimated_duration_minutes": 150,
+             "is_published": True},
         ]
         for i, cd in enumerate(courses_data, 1):
             await Course.objects().create(id=i, created_by_user_id=1, **cd)

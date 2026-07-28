@@ -13,6 +13,81 @@ from app.schemas.auth import (
 router = APIRouter(prefix="/courses", tags=["courses"])
 
 
+# === STATIC ROUTES FIRST (before {course_id} param routes) ===
+
+
+@router.get("/my-progress", response_model=list[CourseProgressItem])
+async def my_course_progress(user: CurrentUser):
+    cps = [cp for cp in CourseProgress.objects().all() if cp.user_id == user.id]
+    result = []
+    for cp in sorted(cps, key=lambda x: x.last_accessed_at, reverse=True):
+        course = Course.objects().get(id=cp.course_id)
+        if course:
+            result.append(CourseProgressItem(
+                progress_id=cp.id, course_id=cp.course_id, slug=course.slug, title=course.title,
+                category=course.category, lessons_completed=cp.lessons_completed_count,
+                average_score=float(cp.total_score), is_completed=cp.is_completed,
+                last_accessed_at=cp.last_accessed_at,
+            ))
+    return result
+
+
+@router.get("/search")
+async def search_courses(
+    q: str | None = Query(None, min_length=2),
+    category: str | None = Query(None),
+    difficulty: str | None = Query(None),
+    limit: int = Query(20, ge=1, le=100),
+):
+    """Full-text search across courses by title, description, tags."""
+    if not q:
+        return []
+
+    query = q.lower()
+    results = []
+    
+    for c in Course.objects().all():
+        if not c.is_published:
+            continue
+        
+        searchable = f"{c.title} {c.description} {c.subject} {' '.join(c.tags)}".lower()
+        
+        # Match full words or partial matches with decent specificity (4+ chars)
+        match_words = [w for w in query.split() if len(w) >= 4 and w in searchable]
+        if not match_words:
+            continue
+        
+        # Calculate relevance score
+        score = 0
+        title_lower = c.title.lower()
+        desc_lower = (c.description or "").lower()
+        
+        for word in match_words:
+            if word in title_lower:
+                score += 3  # title match is most relevant
+            if word in desc_lower:
+                score += 1
+        
+        # Apply filters
+        if category and c.category != category:
+            continue
+        if difficulty and c.difficulty != difficulty:
+            continue
+        
+        results.append({
+            "id": c.id, "slug": c.slug, "title": c.title,
+            "description": (c.description or "")[:200],
+            "category": c.category, "difficulty": c.difficulty,
+            "xp_reward": c.xp_reward, "relevance_score": score,
+        })
+    
+    results.sort(key=lambda x: x["relevance_score"], reverse=True)
+    return results[:limit]
+
+
+# === BASE LIST ROUTE ===
+
+
 @router.get("", response_model=list[CourseListItem])
 async def list_courses(
     category: str | None = Query(None),
@@ -41,6 +116,9 @@ async def list_courses(
     ]
 
 
+# === PARAM ROUTES (after static routes) ===
+
+
 @router.get("/{course_id}", response_model=CourseDetail)
 async def get_course(course_id: int):
     course = Course.objects().get(id=course_id)
@@ -56,7 +134,7 @@ async def get_course(course_id: int):
         id=course.id, slug=course.slug, title=course.title, description=course.description or "",
         category=course.category, difficulty=course.difficulty, xp_reward=course.xp_reward,
         estimated_duration_minutes=course.estimated_duration_minutes, subject=course.subject,
-        lessons=[LessonPublic(id=l.id, slug=l.slug, title=l.title) for l in lessons],
+        lessons=[LessonPublic(id=l.id, slug=l.slug, title=l.title, xp_reward=int(l.xp_reward)) for l in lessons],
     )
 
 
@@ -218,22 +296,6 @@ async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, bod
     )
 
 
-@router.get("/my-progress", response_model=list[CourseProgressItem])
-async def my_course_progress(user: CurrentUser):
-    cps = [cp for cp in CourseProgress.objects().all() if cp.user_id == user.id]
-    result = []
-    for cp in sorted(cps, key=lambda x: x.last_accessed_at, reverse=True):
-        course = Course.objects().get(id=cp.course_id)
-        if course:
-            result.append(CourseProgressItem(
-                progress_id=cp.id, course_id=cp.course_id, slug=course.slug, title=course.title,
-                category=course.category, lessons_completed=cp.lessons_completed_count,
-                average_score=float(cp.total_score), is_completed=cp.is_completed,
-                last_accessed_at=cp.last_accessed_at,
-            ))
-    return result
-
-
 @router.get("/{course_id}/progress")
 async def get_course_progress(course_id: int, user: CurrentUser):
     cp = None
@@ -255,57 +317,3 @@ async def get_course_progress(course_id: int, user: CurrentUser):
         "is_completed": cp.is_completed,
         "completed_lesson_ids": completed_ids,
     }
-
-
-@router.get("/search")
-async def search_courses(
-    q: str | None = Query(None, min_length=2),
-    category: str | None = Query(None),
-    difficulty: str | None = Query(None),
-    limit: int = Query(20, ge=1, le=100),
-):
-    """Full-text search across courses by title, description, tags."""
-    if not q:
-        return []
-
-    query = q.lower()
-    results = []
-    
-    for c in Course.objects().all():
-        if not c.is_published:
-            continue
-        
-        searchable = f"{c.title} {c.description} {c.subject} {' '.join(c.tags)}".lower()
-        
-        # Match full words or partial matches with decent specificity (4+ chars)
-        match_words = [w for w in query.split() if len(w) >= 4 and w in searchable]
-        if not match_words:
-            continue
-        
-        # Calculate relevance score
-        score = 0
-        title_lower = c.title.lower()
-        desc_lower = (c.description or "").lower()
-        
-        for word in match_words:
-            if word in title_lower:
-                score += 3  # title match is most relevant
-            if word in desc_lower:
-                score += 1
-        
-        # Apply filters
-        if category and c.category != category:
-            continue
-        if difficulty and c.difficulty != difficulty:
-            continue
-        
-        results.append({
-            "id": c.id, "slug": c.slug, "title": c.title,
-            "description": (c.description or "")[:200],
-            "category": c.category, "difficulty": c.difficulty,
-            "xp_reward": c.xp_reward, "relevance_score": score,
-        })
-    
-    results.sort(key=lambda x: x["relevance_score"], reverse=True)
-    return results[:limit]
-
