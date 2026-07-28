@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.core.deps import CurrentUser
-from app.core.store import Course, CourseProgress, Lesson, LessonCompletion, iso_now
+from app.core.store import Achievement, Course, CourseProgress, Lesson, LessonCompletion, User, iso_now
 
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -165,6 +167,28 @@ async def complete_lesson(course_id: int, lesson_id: int, user: CurrentUser, req
     await CourseProgress.objects().update(cp)
 
     leveled_up, new_level = user.add_xp(xp_earned)
+    
+    # Auto-check achievements after XP gain
+    newly_unlocked = []
+    all_achievements = [a for a in Achievement.objects().all() if a.is_active]
+    for ach in all_achievements:
+        if ach.id in user.achievement_ids:
+            continue
+        rule = ach.rule_definition or {}
+        should_award = False
+        
+        if rule.get("type") == "level_reached" and user.level >= rule.get("level", 999):
+            should_award = True
+        elif rule.get("type") == "streak_reached" and user.streak_current >= rule.get("streak_days", 999):
+            should_award = True
+        elif rule.get("type") == "total_xp_reached" and user.total_xp_earned >= rule.get("xp_threshold", float("inf")):
+            should_award = True
+        
+        if should_award:
+            user.achievement_ids.append(ach.id)
+            user.add_xp(ach.xp_reward)
+            newly_unlocked.append({"id": ach.id, "title": ach.title, "rarity": ach.rarity})
+
     await User.objects().update(user)
 
     return {
@@ -218,5 +242,4 @@ async def get_course_progress(course_id: int, user: CurrentUser):
     }
 
 
-# Import for the function above — at module level to match route imports
 from app.core.store import User  # noqa: E402 F401

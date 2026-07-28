@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0a0a0f;
+  --bg-secondary: #121218;
+  --bg-card: #16161e;
+  --border-color: rgba(59, 130, 246, 0.15);
+  --accent: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.4);
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1aa;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6;
+  }
+
+  .accent-text { color: var(--accent); }
+
+  .btn-primary {
+    @apply px-6 py-3 rounded-xl font-semibold text-sm transition-all duration-200 cursor-pointer;
+    background: linear-gradient(135deg, #3b82f6, #6366f1);
+    color: white;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none transition-colors;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #a855f7);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 cursor-pointer hover:bg-white/10 hover:border-blue-500/30 hover:-translate-y-1;
+  }
+}

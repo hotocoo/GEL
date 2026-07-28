@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import APIRouter, Depends, Query
 
 from app.core.deps import CurrentUser
@@ -122,3 +124,60 @@ async def check_and_award_achievements(user: CurrentUser):
     await User.objects().update(user)
 
     return {"newly_unlocked": newly_unlocked, "total_achievements": len(user.achievement_ids)}
+
+@router.post("/streak-bonus")
+async def claim_streak_bonus(user: CurrentUser):
+    """Claim extra XP for maintaining a streak."""
+    if user.streak_current < 2:
+        return {"message": "Streak bonus available from day 2 onwards", "xp_awarded": 0}
+
+    # Bonus scales with streak length: 10 XP/day base, +5 per streak day above 2
+    base_bonus = 10
+    multiplier = min(user.streak_current - 1, 20) * 5  # caps at +100 XP extra
+    bonus_xp = base_bonus + multiplier
+
+    original_level = user.level
+    user.add_xp(bonus_xp)
+    leveled_up = user.level > original_level
+
+    await User.objects().update(user)
+
+    return {
+        "message": f"Streak bonus claimed: +{bonus_xp} XP",
+        "xp_awarded": bonus_xp,
+        "streak_current": user.streak_current,
+        "leveled_up": leveled_up,
+    }
+
+
+@router.get("/course-completion/{course_id}/certificate")
+async def get_course_certificate(course_id: int, user: CurrentUser):
+    """Generate a completion certificate data for finished courses."""
+    from app.core.store import CourseProgress
+
+    cp = None
+    for p in CourseProgress.objects().all():
+        if p.user_id == user.id and p.course_id == course_id:
+            cp = p
+            break
+
+    if not cp or not cp.is_completed:
+        return {"error": "Course not completed"}
+
+    from app.core.store import Course
+    course = Course.objects().get(id=course_id)
+    if not course:
+        return {"error": "Course not found"}
+
+    # Certificate data — frontend can render this as a PDF/image
+    return {
+        "certificate": {
+            "recipient": user.username,
+            "course_title": course.title,
+            "course_category": course.category,
+            "completion_date": cp.last_accessed_at[:10],
+            "average_score": round(cp.total_score, 1),
+            "lessons_completed": cp.lessons_completed_count,
+        }
+    }
+

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Auth endpoints — JSON file backend."""
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
@@ -115,14 +117,14 @@ async def request_password_reset(body: dict):
 
 @router.post("/reset-password")
 async def reset_password(body: dict):
-    from datetime import UTC, datetime
+    from datetime import datetime, timezone
 
     token = body.get("token", "")
     new_pw = body.get("new_password", "")
     if not token or not new_pw:
         raise HTTPException(status_code=400, detail="Token and new_password required")
 
-    now_dt = datetime.now(UTC)
+    now_dt = datetime.now(timezone.utc)
     user = None
     for u in User.objects().all():
         if u.reset_token == token and u.reset_token_expires_at:

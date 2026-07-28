@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from fastapi import FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
