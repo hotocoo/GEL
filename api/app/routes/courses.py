@@ -61,6 +61,7 @@ async def get_course(course_id: int):
 
 @router.post("/{course_id}/enroll")
 async def enroll_in_course(course_id: int, user: CurrentUser):
+    """Enroll in a course with prerequisite validation."""
     course = Course.objects().get(id=course_id)
     if not course or not course.is_published:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -68,6 +69,22 @@ async def enroll_in_course(course_id: int, user: CurrentUser):
     for cp in CourseProgress.objects().all():
         if cp.user_id == user.id and cp.course_id == course_id:
             raise HTTPException(status_code=400, detail="Already enrolled in this course")
+
+    # Check prerequisite course completion
+    prereq_id = course.prerequisite_course_id
+    if prereq_id:
+        prereq_complete = False
+        for cp2 in CourseProgress.objects().all():
+            if cp2.user_id == user.id and cp2.course_id == prereq_id and cp2.is_completed:
+                prereq_complete = True
+                break
+
+        if not prereq_complete:
+            prereq_course = Course.objects().get(id=prereq_id)
+            raise HTTPException(
+                status_code=status.HTTP_412_PRECONDITION_FAILED,
+                detail=f"Prerequisite required: {prereq_course.title if prereq_course else 'Course'}",
+            )
 
     progress = await CourseProgress.objects().create(user_id=user.id, course_id=course_id)
     return {"message": "Enrolled successfully", "progress_id": progress.id}
