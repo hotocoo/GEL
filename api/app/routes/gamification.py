@@ -126,14 +126,16 @@ async def check_and_award_achievements(user: CurrentUser):
     return {"newly_unlocked": newly_unlocked, "total_achievements": len(user.achievement_ids)}
 
 @router.post("/streak-bonus", response_model=StreakBonusResponse)
-async def claim_streak_bonus(user: CurrentUser):
+async def claim_streak_bonus(user: _CurrentUser):
     """Claim extra XP for maintaining a streak."""
     if user.streak_current < 2:
-        return {"message": "Streak bonus available from day 2 onwards", "xp_awarded": 0}
+        return StreakBonusResponse(
+            message="Streak bonus available from day 2 onwards",
+            xp_awarded=0, streak_current=user.streak_current, leveled_up=False
+        )
 
-    # Bonus scales with streak length: 10 XP/day base, +5 per streak day above 2
     base_bonus = 10
-    multiplier = min(user.streak_current - 1, 20) * 5  # caps at +100 XP extra
+    multiplier = min(user.streak_current - 1, 20) * 5
     bonus_xp = base_bonus + multiplier
 
     original_level = user.level
@@ -142,12 +144,10 @@ async def claim_streak_bonus(user: CurrentUser):
 
     await User.objects().update(user)
 
-    return {
-        "message": f"Streak bonus claimed: +{bonus_xp} XP",
-        "xp_awarded": bonus_xp,
-        "streak_current": user.streak_current,
-        "leveled_up": leveled_up,
-    }
+    return StreakBonusResponse(
+        message=f"Streak bonus claimed: +{bonus_xp} XP",
+        xp_awarded=bonus_xp, streak_current=user.streak_current, leveled_up=leveled_up,
+    )
 
 
 @router.get("/course-completion/{course_id}/certificate", response_model=CourseCertificateResponse)
