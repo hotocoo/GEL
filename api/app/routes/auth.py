@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 """Auth endpoints — JSON file backend."""
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
@@ -141,3 +143,25 @@ async def reset_password(body: dict):
     user.reset_token_expires_at = None
     await User.objects().update(user)
     return {"message": "Password has been reset"}
+
+@router.put("/me/profile")
+async def update_profile(data: dict, user: CurrentUser):
+    """Update user profile settings."""
+    allowed_fields = {"username", "avatar_url"}
+    
+    if "username" in data:
+        new_username = (data["username"] or "").strip().lower()
+        if not re.match(r'^[a-z0-9_]{3,32}$', new_username):
+            raise HTTPException(status_code=400, detail="Invalid username format")
+        for u in User.objects().all():
+            if u.id != user.id and u.username == new_username:
+                raise HTTPException(status_code=409, detail="Username already taken")
+        user.username = new_username
+    
+    if "avatar_url" in data:
+        user.avatar_url = str(data["avatar_url"])[:512] or ""
+    
+    user.updated_at = iso_now()
+    await User.objects().update(user)
+    return {"message": "Profile updated", "user": UserPublic.model_validate(user)}
+
