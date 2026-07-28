@@ -31,9 +31,9 @@ async def admin_stats(user: AdminUser):
 
 @router.get("/users")
 async def list_admin_users(
+    user: AdminUser,
     limit: int = 100,
     offset: int = 0,
-    user: AdminUser,
 ):
     """List all users for admin management."""
     users = User.objects().all()
@@ -52,8 +52,7 @@ async def list_admin_users(
 
 @router.put("/users/{user_id}")
 async def update_admin_user(
-    user_id: int, data: dict,
-    user: AdminUser,
+    user: AdminUser, user_id: int, data: dict,
 ):
     """Update any user's settings (role, status)."""
     target = User.objects().get(id=user_id)
@@ -72,8 +71,7 @@ async def update_admin_user(
 
 @router.delete("/users/{user_id}")
 async def deactivate_user(
-    user_id: int,
-    user: AdminUser,
+    user: AdminUser, user_id: int,
 ):
     """Soft-delete a user (set is_active=False)."""
     if user_id == user.id:
@@ -157,8 +155,7 @@ async def create_lesson(
 
 @router.put("/courses/{course_id}/lessons/{lesson_id}")
 async def update_lesson(
-    course_id: int, lesson_id: int, data: dict,
-    user: AdminUser,
+    user: AdminUser, course_id: int, lesson_id: int, data: dict,
 ):
     """Update a lesson's content."""
     lesson = Lesson.objects().get(id=lesson_id)
@@ -177,8 +174,7 @@ async def update_lesson(
 
 @router.delete("/courses/{course_id}/lessons/{lesson_id}")
 async def delete_lesson(
-    course_id: int, lesson_id: int,
-    user: AdminUser,
+    user: AdminUser, course_id: int, lesson_id: int,
 ):
     """Delete a lesson."""
     lesson = Lesson.objects().get(id=lesson_id)
